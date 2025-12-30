@@ -4,9 +4,9 @@ import os
 
 def main():
     """
-    Pipeline completo: Extract, Transform, Load.
+    Complete ETL pipeline: Extract, Transform, Load.
     """
-    # Para teste, usar arquivo local
+    # For testing, use local file
     raw_file = 'data/raw/crime_data.csv'
     processed_dir = 'data/processed/'
     db_path = os.path.join(processed_dir, 'crime_data.db')
@@ -16,7 +16,7 @@ def main():
         if processed_file:
             load_crime_data_to_db(processed_file, db_path)
 
-    print("Pipeline concluído!")
+    print("Pipeline completed!")
 
 if __name__ == "__main__":
     main()

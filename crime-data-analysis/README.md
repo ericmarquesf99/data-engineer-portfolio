@@ -1,63 +1,63 @@
 # Crime Data Analysis Pipeline
 
-Um pipeline de análise de dados de crimes urbanos, focado em São Paulo, Brasil. Este projeto demonstra habilidades intermediárias em engenharia de dados, incluindo extração de dados públicos, transformação, carregamento em banco de dados e visualizações.
+An urban crime data analysis pipeline focused on São Paulo, Brazil. This project demonstrates intermediate data engineering skills, including extraction from public data sources, transformation, database loading, and visualizations.
 
-## Visão Geral
+## Overview
 
-O projeto coleta dados de ocorrências criminais da SSP-SP (Secretaria da Segurança Pública de São Paulo), processa-os para identificar padrões por bairro e período, e gera insights através de visualizações.
+The project collects crime occurrence data from SSP-SP (São Paulo State Public Security Department), processes it to identify patterns by neighborhood and period, and generates insights through visualizations.
 
-## Principais Conquistas
-- Extração automatizada de dados de fontes públicas
-- Limpeza e agregação de dados para análise
-- Carregamento em banco SQLite para consultas eficientes
-- Visualizações de mapas de calor e tendências temporais
+## Key Achievements
+- Automated data extraction from public sources
+- Data cleaning and aggregation for analysis
+- Loading into SQLite database for efficient queries
+- Heatmap and temporal trend visualizations
 
-## Arquitetura
+## Architecture
 ```
 SSP-SP API/CSV → Extract → Transform → Load → SQLite → Visualizations
 ```
 
-## Resultados
-- Dados processados: 60+ registros de crimes de janeiro a março de 2025
-- Qualidade: Dados limpos e agregados
-- Performance: Consultas rápidas no SQLite
-- Insights: Padrões de crimes por bairro e mês
+## Results
+- Data Processed: 60+ crime records from January to March 2025
+- Quality: Cleaned and aggregated data
+- Performance: Fast queries on SQLite
+- Insights: Crime patterns by neighborhood and month
 
-## Tecnologias Usadas
-- **Linguagem**: Python 3.11+
-- **Processamento**: Pandas para ETL
-- **Banco**: SQLite
-- **APIs**: Requests para downloads
-- **Visualização**: Matplotlib + Seaborn
+## Technologies Used
+- **Language**: Python 3.11+
+- **Processing**: Pandas for ETL
+- **Database**: SQLite
+- **APIs**: Requests for downloads
+- **Visualization**: Matplotlib + Seaborn
 
-## Estrutura do Projeto
+## Project Structure
 ```
 crime-data-analysis/
-├── extract.py          # Extração de dados da SSP-SP
-├── transform.py        # Limpeza e transformação
-├── load.py            # Carregamento no SQLite
-├── main.py            # Orquestração do pipeline
-├── visualize.py       # Geração de gráficos
-├── data/              # Dados brutos e processados
-└── README.md          # Documentação
+├── extract.py          # SSP-SP data extraction
+├── transform.py        # Data cleaning and transformation
+├── load.py            # SQLite loading
+├── main.py            # Pipeline orchestration
+├── visualize.py       # Chart generation
+├── data/              # Raw and processed data
+└── README.md          # Documentation
 ```
 
-## Como Usar
-1. Instale dependências: `pip install -r requirements.txt`
-2. Baixe dados manuais se necessário (ou ajuste URLs em extract.py)
-3. Execute o pipeline: `python main.py`
-4. Gere visualizações: `python visualize.py`
+## How to Use
+1. Install dependencies: `pip install -r requirements.txt`
+2. Download data manually if needed (or adjust URLs in extract.py)
+3. Run the pipeline: `python main.py`
+4. Generate visualizations: `python visualize.py`
 
-## Lições Aprendidas
-- Manipulação de dados geoespaciais
-- Agregação temporal para insights
-- Integração com fontes governamentais
+## Key Learnings
+- Handling geospatial data
+- Temporal aggregation for insights
+- Integration with government data sources
 
-## Visualizações de Exemplo
-- **Crimes por Localização**: ![Crimes por Localização](crime_by_location.png)
-- **Tendências de Crimes ao Longo do Tempo**: ![Tendências de Crimes](crime_trend.png)
+## Sample Visualizations
+- **Crimes by Location**: ![Crimes by Location](crime_by_location.png)
+- **Crime Trends Over Time**: ![Crime Trends Over Time](crime_trend.png)
 
-## Melhorias Futuras
-- Adicionar mapas interativos com Geopandas
-- Implementar clustering para hotspots
-- Deploy no Azure para automação
+## Future Enhancements
+- Add interactive maps with Geopandas
+- Implement clustering for hotspots
+- Deploy on Azure for automation
