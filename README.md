@@ -196,6 +196,85 @@ python visualize.py
 
 [**View Full Project Details** →](./anac-flights-pipeline/README.md)
 
+### 2. **Urban Crime Data Analysis Pipeline**
+
+**Status**: ✅ Complete  
+**Technologies**: Python, Pandas, SQLite, SSP-SP Data, Matplotlib, Seaborn
+
+#### Overview
+An ETL pipeline that extracts, transforms, and analyzes urban crime data from São Paulo's public security department. The project identifies crime patterns by location and time, providing insights for urban safety analysis.
+
+#### Key Achievements
+- ✅ Automated data extraction from government sources
+- ✅ Data cleaning and aggregation for spatial-temporal analysis
+- ✅ SQLite database for efficient crime statistics queries
+- ✅ Heatmap and trend visualizations for crime hotspots
+- ✅ Modular codebase with separation of ETL concerns
+
+#### Architecture
+```
+SSP-SP Data → Extract → Transform → Load → SQLite → Visualizations
+```
+
+#### Results
+- **Data Processed**: 60+ crime records from Jan-Mar 2025
+- **Data Quality**: Cleaned and aggregated data for analysis
+- **Query Performance**: Fast queries on crime statistics
+- **Insights**: Identified high-crime areas and temporal patterns
+
+#### Visualizations Generated
+1. **Crimes by Location** - Spatial distribution of incidents
+2. **Crime Trends Over Time** - Monthly patterns and spikes
+3. **Heatmap Analysis** - Geographic hotspots
+
+#### Technologies Used
+- **Language**: Python 3.11+
+- **Data Processing**: Pandas for ETL
+- **Database**: SQLite
+- **APIs**: Requests for data downloads
+- **Visualization**: Matplotlib + Seaborn
+
+#### Project Structure
+```
+crime-data-analysis/
+├── extract.py          # SSP-SP data extraction
+├── transform.py        # Data cleaning & aggregation
+├── load.py            # SQLite operations
+├── main.py            # Pipeline orchestration
+├── visualize.py       # Crime analytics
+├── data/              # Raw and processed data
+└── README.md          # Documentation
+```
+
+#### How to Use
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/data-engineer-portfolio.git
+cd crime-data-analysis
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run the pipeline
+python main.py
+
+# Generate visualizations
+python visualize.py
+```
+
+#### Key Learnings
+- Handling geospatial and temporal data
+- Aggregating data for urban insights
+- Integrating with public government data sources
+
+#### Future Enhancements
+- [ ] Add interactive maps with Geopandas
+- [ ] Implement machine learning for crime prediction
+- [ ] Deploy on Azure for real-time updates
+- [ ] Create Streamlit dashboard
+
+[**View Full Project Details** →](./crime-data-analysis/README.md)
+
 ---
 
 ## 💻 Technical Skills
@@ -240,11 +319,11 @@ python visualize.py
 
 | Metric | Value |
 |--------|-------|
-| **Projects Completed** | 1+ |
+| **Projects Completed** | 2+ |
 | **Code Repositories** | Public on GitHub |
-| **Data Processed** | 130+ records per run |
+| **Data Processed** | 130+ flight records + 60+ crime records (Jan-Mar 2025) |
 | **Languages Used** | Python, SQL, Bash |
-| **API Integrations** | OpenSky Network |
+| **API Integrations** | OpenSky Network, SSP-SP |
 | **Database Systems** | SQLite |
 
 ---
