@@ -1,4 +1,4 @@
-# Data Engineer Portfolio
+# Eric Ferreira - Data Engineer Portfolio
 
 Welcome to my data engineering portfolio. This repository showcases my expertise in building scalable, production-ready data pipelines and solving complex data challenges.
 
@@ -6,13 +6,106 @@ Welcome to my data engineering portfolio. This repository showcases my expertise
 
 ## 👤 About Me
 
-I'm a passionate data engineer with expertise in:
-- **ETL/ELT Pipeline Design**: Building efficient data workflows
-- **Data Storage & Management**: SQL, NoSQL, and data warehouse solutions
-- **Data Processing**: Pandas, PySpark, and distributed computing
-- **Cloud Technologies**: AWS, GCP fundamentals
-- **API Integration**: RESTful APIs and real-time data streams
-- **Database Design**: Schema optimization and query performance
+**Eric Ferreira**  
+**Data Engineer**  
+**Location**: Fortaleza, Ceará, Brazil  
+**Phone**: +55 85 98509-7717  
+**Email**: [ericmarques1999@email.com](mailto:ericmarques1999@email.com)  
+**LinkedIn**: [https://www.linkedin.com/in/eric-marquesf/](https://www.linkedin.com/in/eric-marquesf/)
+
+### Summary
+Data engineer with over 3 years of diverse experience and over 7 years working in technology related roles. Known for demonstrating a keen eye for extracting, treating and loading data in order to enable data driven decisions. Expertise in leveraging key technologies such as SQL, Python, and Azure to take the best from any kind of data and increase the data science effectiveness.
+
+---
+
+## 💼 Professional Experience
+
+### Data Engineer
+**KIS, United States – Remote**  
+*01/2025 to present*
+
+**Core Responsibilities:**
+- Design and maintain data pipelines to ensure the data is always available for business users and data analysts
+- Apply enhancements to existing data pipelines to reduce computing cost for the business
+- Create documentation of new data pipelines to ensure
+- Extract data from multiple sources such as APIs, raw csv files, json files, parquet files
+- Create data pipelines in Azure Data Factory to automate data ingestion and transformation scripts to make fresh data available 50% faster
+- Create Python and PySpark scripts using Databricks to transform data and meet highly complex business requirements
+- Perform ad-hoc data analysis on SQL Server and MySQL databases to support business data decisions
+
+**Key Technologies and Tools:** SQL, Snowflake, Python, Databricks, PySpark, Git, Agile, Azure Cloud, Azure Data Factory.
+
+### Data Engineer
+**Dexian, Curitiba, BR – Remote**  
+*08/2023 to 12/2024*
+
+**Core Responsibilities:**
+- Created complex views in Snowflake using SQL achieving better data treatment and enabling better data analysis and data science
+- Materialized views using SQL and JavaScript in order to make the view's performance 70% faster
+- Created data pipelines in Azure Data Factory to automate data ingestion and transformation scripts to make fresh data available 50% faster
+- Created Python and PySpark scripts using Databricks to transform data and meet highly complex business requirements
+- Followed CI/CD development management guidelines using GitHub in order to deploy high quality and sustainable code enabling much more collaboration between development teams
+
+**Key Technologies and Tools:** SQL, Snowflake, Python, Databricks, PySpark, Git, Agile, Azure Cloud, Azure Data Factory.
+
+### Data Engineer
+**Curitiba, Fortaleza, BR – Remote**  
+*01/2022 to 07/2023*
+
+**Core Responsibilities:**
+- Created complex views in Snowflake using SQL achieving better data treatment and enabling better data analysis and data science
+- Created .csv loading scripts using Python in order to load huge datasets into Data Warehouse tables
+- Created data pipelines in Azure Data Factory to automate data ingestion and transformation scripts to make fresh data available 50% faster
+
+**Key Technologies and Tools:** SQL, Snowflake, Python, Git, Azure Data Factory, Retail Industry knowledge.
+
+### Data Analyst
+**LIQ, Fortaleza, BR – Remote**  
+*06/2021 to 12/2021*
+
+**Core Responsibilities:**
+- Developed complex queries on large data sets using SQL to improve Excel analytics reports
+- Created managerial reports in Excel, to analyze the productivity of the call center teams enabling data driven decisions
+- Developed complex formulas in Excel, to meet business requirements
+
+**Key Technologies and Tools:** SQL, SQL Server, Excel, VBA, Google Data Studio.
+
+### Support Analyst
+**Dragão dos Parafusos, Fortaleza, BR**  
+*09/2020 to 07/2021*
+
+**Core Responsibilities:**
+- Created SQL queries for development of management reports to enable data driven decisions
+- Timely fixed any bugs that might make the sales operations go down
+- Developed solutions to streamline the company's processes within the system
+
+**Key Technologies and Tools:** SQL, ERP, Oracle, Excel, PL/SQL
+
+### Support Analyst
+**Comercial Brasil, Fortaleza, BR**  
+*10/2016 to 07/2021*
+
+**Core Responsibilities:**
+- Created SQL queries for development of management reports to enable data driven decisions
+- Timely fixed any bugs that might make the sales operations go down
+- Developed solutions to streamline the company's processes within the system
+
+**Key Technologies and Tools:** SQL, ERP, Oracle, Excel, PL/SQL
+
+---
+
+## 🎓 Education
+
+**Bachelor of System Analysis**  
+Estácio de Sá, Ceará, Brazil  
+*01/2018 to 12/2020*
+
+---
+
+## 🌐 Languages
+
+- **Portuguese**: Native
+- **English**: Fluent
 
 ---
 
@@ -107,6 +200,15 @@ python visualize.py
 
 ## 💻 Technical Skills
 
+### Proficient
+- SQL, Data Engineering, Oracle, Snowflake, ETL, Excel, Data Warehouse, Database Development, Data Integration
+
+### Intermediate
+- Databricks, Azure Cloud, Azure Data Factory, Python, Git, GitHub, Agile Development, SQL Server, MySQL
+
+### Beginner
+- React, Kafka
+
 ### Languages & Frameworks
 - **Python** (Primary) - Pandas, Polars, PySpark, NumPy
 - **SQL** - PostgreSQL, SQLite, MySQL query optimization
@@ -166,8 +268,8 @@ python visualize.py
 ## 🔗 Links & Resources
 
 - **GitHub**: [github.com/yourusername](https://github.com/yourusername)
-- **LinkedIn**: [linkedin.com/in/yourprofile](https://linkedin.com/in/yourprofile)
-- **Email**: [your.email@example.com](mailto:your.email@example.com)
+- **LinkedIn**: [https://www.linkedin.com/in/eric-marquesf/](https://www.linkedin.com/in/eric-marquesf/)
+- **Email**: [ericmarques1999@email.com](mailto:ericmarques1999@email.com)
 
 ---
 
@@ -185,6 +287,6 @@ All projects are available under the MIT License unless otherwise specified.
 
 ---
 
-**Last Updated**: December 29, 2025
+**Last Updated**: December 30, 2025
 
 *This portfolio is continuously updated with new projects and learnings.*
