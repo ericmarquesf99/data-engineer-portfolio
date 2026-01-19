@@ -23,6 +23,7 @@ sys.path.append("/Workspace/Repos/<username>/enterprise-data-pipeline/src")
 
 from loaders.snowflake_loader import SnowflakeLoader
 from utils.logging_config import StructuredLogger
+from utils.config_loader import load_config
 
 # COMMAND ----------
 
@@ -60,13 +61,19 @@ spark = SparkSession.builder.getOrCreate()
 
 # Configurar conexão Snowflake
 snowflake_config = {
-    "account": snowflake_account,
-    "user": snowflake_user,
-    "password": snowflake_password,
-    "warehouse": snowflake_warehouse,
-    "database": snowflake_database,
-    "schema": snowflake_schema
+    "snowflake": {
+        "account": snowflake_account,
+        "user": snowflake_user,
+        "password": snowflake_password,
+        "warehouse": snowflake_warehouse,
+        "database": snowflake_database,
+        "schema": snowflake_schema
+    }
 }
+
+# Alternativa: Se usar arquivo config
+# config = load_config()
+# snowflake_config = config
 
 loader = SnowflakeLoader(snowflake_config)
 

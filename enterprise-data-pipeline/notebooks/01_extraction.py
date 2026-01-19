@@ -22,8 +22,7 @@ import json
 sys.path.append("/Workspace/Repos/<username>/enterprise-data-pipeline/src")
 
 from extractors.coingecko_extractor import CryptoExtractor
-from utils.logging_config import StructuredLogger
-
+from utils.logging_config import StructuredLoggerfrom utils.config_loader import load_config
 # COMMAND ----------
 
 # Obter parâmetros do notebook pai
@@ -46,8 +45,11 @@ logger.log_event("extraction_notebook_started", {"run_id": run_id})
 start_time = datetime.now()
 
 try:
-    # Inicializar extrator
-    extractor = CryptoExtractor()
+    # Carregar configuração
+    config = load_config()
+    
+    # Inicializar extrator com config
+    extractor = CryptoExtractor(config)
     
     # Obter dados de múltiplas criptomoedas
     crypto_ids = [

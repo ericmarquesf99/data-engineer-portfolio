@@ -23,6 +23,7 @@ sys.path.append("/Workspace/Repos/<username>/enterprise-data-pipeline/src")
 
 from transformers.spark_processor import SparkProcessor
 from utils.logging_config import StructuredLogger
+from utils.config_loader import load_config
 
 # COMMAND ----------
 
@@ -68,7 +69,8 @@ start_time = datetime.now()
 
 try:
     # Inicializar processador
-    processor = SparkProcessor(spark)
+    config = load_config()
+    processor = SparkProcessor(config)
     
     logger.log_event("reading_bronze_data", {"path": input_path})
     
