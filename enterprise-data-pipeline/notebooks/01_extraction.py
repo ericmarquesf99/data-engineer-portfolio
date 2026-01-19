@@ -117,23 +117,19 @@ try:
             )
             cur = conn.cursor()
             
-            # Garantir schema e tabela
-            cur.execute(f"CREATE SCHEMA IF NOT EXISTS BRONZE")
-            cur.execute(f"""
-                CREATE TABLE IF NOT EXISTS BRONZE.CRYPTO_RAW (
-                    payload VARIANT,
-                    extracted_at TIMESTAMP_NTZ,
-                    run_id STRING
-                )
-            """)
+            # Garantir schema Bronze
+            cur.execute("USE SCHEMA BRONZE")
             
-            # Inserir registros como JSON (VARIANT)
+            # Inserir registros na tabela BRONZE_CRYPTO_RAW
             inserted = 0
             for rec in all_data:
                 payload_json = json.dumps(rec)
                 extracted_at_val = rec.get('extracted_at', extraction_metadata['extraction_timestamp'])
                 cur.execute(
-                    "INSERT INTO BRONZE.CRYPTO_RAW(payload, extracted_at, run_id) SELECT parse_json(%s), %s, %s",
+                    """
+                    INSERT INTO BRONZE_CRYPTO_RAW(payload, extracted_at, run_id, source_system) 
+                    SELECT parse_json(%s), %s, %s, 'coingecko_api'
+                    """,
                     (payload_json, extracted_at_val, run_id)
                 )
                 inserted += 1
@@ -142,8 +138,8 @@ try:
             cur.close()
             conn.close()
             
-            logger.log_event("bronze_load_completed", {"inserted": inserted, "schema": "BRONZE", "table": "CRYPTO_RAW"})
-            print(f"\n❄️  Snowflake Bronze: {inserted} registros inseridos em BRONZE.CRYPTO_RAW")
+            logger.log_event("bronze_load_completed", {"inserted": inserted, "schema": "BRONZE", "table": "BRONZE_CRYPTO_RAW"})
+            print(f"\n❄️  Snowflake Bronze: {inserted} registros inseridos em BRONZE.BRONZE_CRYPTO_RAW")
         else:
             logger.log_event("bronze_load_skipped", {"reason": "no_snowflake_credentials"})
             print("\n⚠️  Snowflake Bronze não executado (credenciais não disponíveis)")
