@@ -29,10 +29,17 @@ from utils.config_loader import load_config, get_snowflake_credentials_from_keyv
 
 # Obter parâmetros do notebook pai
 dbutils.widgets.text("run_id", "", "Run ID")
-dbutils.widgets.text("output_path", "dbfs:/mnt/data/bronze/crypto/", "Output Path")
+dbutils.widgets.text("output_path", "/Workspace/crypto_data/bronze/", "Output Path")
 
 run_id = dbutils.widgets.get("run_id")
 output_path = dbutils.widgets.get("output_path")
+
+# Para Community Edition - usar /Workspace/ ao invés de /mnt/
+# Criar diretório se não existir
+try:
+    dbutils.fs.mkdirs(output_path)
+except:
+    pass  # Diretório pode já existir
 
 logger = StructuredLogger("extraction")
 logger.log_event("extraction_notebook_started", {"run_id": run_id})
@@ -75,7 +82,7 @@ try:
         "snowflake_available": snowflake_config is not None
     }
     
-    # Salvar no DBFS
+    # Salvar no DBFS (Community Edition - usar /Workspace/)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_file = f"{output_path}crypto_data_{timestamp}.json"
     
@@ -84,8 +91,14 @@ try:
         "data": all_data
     }
     
-    # Usar dbutils para salvar no DBFS
-    dbutils.fs.put(output_file, json.dumps(full_data, indent=2), overwrite=True)
+    # Salvar como arquivo JSON
+    import tempfile
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
+        json.dump(full_data, tmp, indent=2)
+        tmp_path = tmp.name
+    
+    # Copiar para Workspace
+    dbutils.fs.cp(f"file:{tmp_path}", output_file, recurse=False)
     
     end_time = datetime.now()
     duration = (end_time - start_time).total_seconds()
