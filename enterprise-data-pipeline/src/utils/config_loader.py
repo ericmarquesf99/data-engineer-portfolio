@@ -9,7 +9,6 @@ import yaml
 import os
 from pathlib import Path
 from typing import Dict, Any, Optional
-from dotenv import load_dotenv
 
 
 class ConfigurationError(Exception):
@@ -93,26 +92,44 @@ def get_environment_config(
     return merged_config
 
 
-def load_environment_variables(env_file: Optional[str] = None):
+def get_azure_keyvault_secrets(vault_name: str, keys: list) -> Dict[str, str]:
     """
-    Load environment variables from .env file
+    Get secrets from Azure Key Vault
     
     Args:
-        env_file: Path to .env file (defaults to .env in project root)
+        vault_name: Name of the Azure Key Vault (without .vault.azure.net)
+        keys: List of secret names to retrieve
+        
+    Returns:
+        Dictionary mapping secret names to their values
+        
+    Raises:
+        ConfigurationError: If vault access fails or secret not found
     """
-    if env_file is None:
-        env_file = ".env"
+    try:
+        from azure.identity import DefaultAzureCredential
+        from azure.keyvault.secrets import SecretClient
+    except ImportError:
+        raise ConfigurationError(
+            "Azure SDK not installed. Install with: "
+            "pip install azure-identity azure-keyvault-secrets"
+        )
     
-    env_path = Path(env_file)
-    if env_path.exists():
-        load_dotenv(env_path)
-    else:
-        # Try parent directories
-        for parent in [Path.cwd(), Path(__file__).parent.parent.parent]:
-            env_path = parent / ".env"
-            if env_path.exists():
-                load_dotenv(env_path)
-                break
+    vault_url = f"https://{vault_name}.vault.azure.net/"
+    credential = DefaultAzureCredential()
+    client = SecretClient(vault_url=vault_url, credential=credential)
+    
+    secrets = {}
+    try:
+        for key in keys:
+            secret = client.get_secret(key)
+            secrets[key] = secret.value
+    except Exception as e:
+        raise ConfigurationError(
+            f"Failed to retrieve secrets from Azure Key Vault '{vault_name}': {e}"
+        )
+    
+    return secrets
 
 
 def get_databricks_secrets(scope: str, keys: list) -> Dict[str, str]:
@@ -140,6 +157,54 @@ def get_databricks_secrets(scope: str, keys: list) -> Dict[str, str]:
         return secrets
     except ImportError:
         raise ConfigurationError("dbutils not available - not in Databricks environment")
+
+
+def get_snowflake_credentials_from_keyvault(vault_name: str) -> Dict[str, str]:
+    """
+    Convenience function to get Snowflake credentials from Azure Key Vault
+    
+    Args:
+        vault_name: Name of the Azure Key Vault (without .vault.azure.net)
+        
+    Returns:
+        Dictionary with Snowflake configuration:
+        {
+            'account': str,
+            'user': str,
+            'password': str,
+            'warehouse': str,
+            'database': str,
+            'schema': str
+        }
+        
+    Note:
+        Expects the following secrets in Azure Key Vault:
+        - snowflake-account
+        - snowflake-user
+        - snowflake-password
+        - snowflake-warehouse
+        - snowflake-database
+        - snowflake-schema
+    """
+    secret_keys = [
+        'snowflake-account',
+        'snowflake-user',
+        'snowflake-password',
+        'snowflake-warehouse',
+        'snowflake-database',
+        'snowflake-schema'
+    ]
+    
+    secrets = get_azure_keyvault_secrets(vault_name, secret_keys)
+    
+    return {
+        'account': secrets['snowflake-account'],
+        'user': secrets['snowflake-user'],
+        'password': secrets['snowflake-password'],
+        'warehouse': secrets['snowflake-warehouse'],
+        'database': secrets['snowflake-database'],
+        'schema': secrets['snowflake-schema']
+    }
 
 
 def _deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
