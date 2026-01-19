@@ -1,10 +1,10 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # ⚙️ Transformation Notebook - Silver & Gold Layers
-# MAGIC 
-# MAGIC **Input:** Bronze JSON files (DBFS)  
-# MAGIC **Processing:** PySpark com validações e limpeza  
-# MAGIC **Output:** DataFrames Silver e Gold (em memória para carga)
+# MAGIC # ⚙️ Transformation Notebook - Silver Layer
+# MAGIC
+# MAGIC **Input:** crypto_data_raw (do notebook 01_extraction)  
+# MAGIC **Processing:** Limpeza, validação e transformação  
+# MAGIC **Output:** crypto_data_silver (table temporária)
 
 # COMMAND ----------
 
@@ -15,122 +15,133 @@
 
 import sys
 from datetime import datetime
-import json
-from pyspark.sql import SparkSession
+import pandas as pd
+from pyspark.sql import functions as F
+from pyspark.sql.types import DoubleType
 
 # Adicionar src ao path
-sys.path.append("/Workspace/Repos/<username>/enterprise-data-pipeline/src")
+sys.path.append("/Workspace/Users/ericmarques1999@gmail.com/data-engineer-portfolio/enterprise-data-pipeline/src")
 
 from transformers.spark_processor import SparkProcessor
 from utils.logging_config import StructuredLogger
-from utils.config_loader import load_config
+from utils.config_loader import load_config, get_snowflake_credentials_from_keyvault
 
 # COMMAND ----------
 
 # Obter parâmetros
 dbutils.widgets.text("run_id", "", "Run ID")
-dbutils.widgets.text("input_path", "", "Input Path")
-dbutils.widgets.text("environment", "production", "Environment")
 
 run_id = dbutils.widgets.get("run_id")
-input_path = dbutils.widgets.get("input_path")
-environment = dbutils.widgets.get("environment")
 
 logger = StructuredLogger("transformation")
-logger.log_event("transformation_notebook_started", {
-    "run_id": run_id,
-    "input": input_path,
-    "environment": environment
-})
+logger.log_event("transformation_notebook_started", {"run_id": run_id})
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Inicializar Spark Session
+# MAGIC ## Recuperar Dados do Notebook de Extração
 
 # COMMAND ----------
 
-spark = SparkSession.builder \
-    .appName("CryptoDataTransformation") \
-    .config("spark.sql.adaptive.enabled", "true") \
-    .config("spark.sql.adaptive.coalescePartitions.enabled", "true") \
-    .getOrCreate()
+# Recuperar DataFrame do notebook anterior
+df_bronze = spark.table("crypto_data_raw")
 
-print(f"✅ Spark Session inicializada: {spark.version}")
+print(f"✅ Dados recuperados: {df_bronze.count()} registros")
+print(f"\n📊 Colunas disponíveis:")
+df_bronze.printSchema()
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Processar Bronze → Silver
+# MAGIC ## Limpeza e Transformação
 
 # COMMAND ----------
 
 start_time = datetime.now()
 
 try:
-    # Inicializar processador
+    # Carregar configuração
     config = load_config()
+    
+    # Inicializar processador
     processor = SparkProcessor(config)
     
-    logger.log_event("reading_bronze_data", {"path": input_path})
-    
-    # Ler dados do DBFS
-    bronze_df = spark.read.json(input_path)
-    
-    # Processar para Silver (limpeza e validação)
-    logger.log_event("transforming_to_silver", {})
-    silver_df = processor.process_bronze_to_silver(bronze_df)
-    
-    # Validar qualidade dos dados
-    validation_results = processor.validate_data_quality(silver_df)
-    
-    logger.log_event("silver_validation", {
-        "total_records": validation_results.get("total_records"),
-        "null_checks": validation_results.get("null_checks"),
-        "anomalies_detected": validation_results.get("anomalies_detected", 0)
+    logger.log_event("transforming_bronze_to_silver", {
+        "input_records": df_bronze.count()
     })
     
-    silver_count = silver_df.count()
+    # Processamento básico de limpeza
+    df_silver = df_bronze \
+        .dropDuplicates() \
+        .filter(F.col("id").isNotNull()) \
+        .filter(F.col("current_price").isNotNull())
+    
+    # Adicionar coluna de processamento
+    df_silver = df_silver.withColumn(
+        "processed_at",
+        F.lit(datetime.now().isoformat())
+    )
+    
+    # Converter colunas numéricas
+    numeric_cols = ["current_price", "market_cap", "total_volume", "market_cap_rank"]
+    for col in numeric_cols:
+        if col in df_silver.columns:
+            df_silver = df_silver.withColumn(col, F.col(col).cast(DoubleType()))
+    
+    silver_count = df_silver.count()
     
     # Cache para próximos processamentos
-    silver_df.cache()
+    df_silver.cache()
+    
+    logger.log_event("silver_transformation_completed", {
+        "output_records": silver_count
+    })
     
     print(f"✅ Silver Layer: {silver_count} registros processados")
+    print(f"\n📊 Amostra dos dados:")
+    df_silver.select("id", "symbol", "current_price", "market_cap", "processed_at").limit(5).display()
     
 except Exception as e:
-    logger.log_event("silver_transformation_error", {"error": str(e)}, level="ERROR")
+    logger.log_event("transformation_error", {"error": str(e)}, level="ERROR")
     raise
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Processar Silver → Gold
+# MAGIC ## Criar Gold Layer (Agregações)
 
 # COMMAND ----------
 
 try:
-    logger.log_event("transforming_to_gold", {})
+    # Criar agregações por categoria (se existir)
+    if "market_cap_rank" in df_silver.columns:
+        df_gold = df_silver \
+            .groupBy(F.col("symbol")) \
+            .agg(
+                F.max("current_price").alias("max_price"),
+                F.min("current_price").alias("min_price"),
+                F.avg("current_price").alias("avg_price"),
+                F.max("market_cap").alias("max_market_cap"),
+                F.count("*").alias("record_count")
+            )
+    else:
+        df_gold = df_silver
     
-    # Criar agregações para Gold Layer
-    gold_df = processor.process_silver_to_gold(silver_df)
-    
-    gold_count = gold_df.count()
+    gold_count = df_gold.count()
     
     # Cache para carga
-    gold_df.cache()
+    df_gold.cache()
     
-    logger.log_event("gold_transformation_completed", {
+    logger.log_event("gold_aggregation_completed", {
         "records": gold_count
     })
     
-    print(f"✅ Gold Layer: {gold_count} métricas agregadas")
-    
-    # Mostrar sample
-    print("\n📊 Sample Gold Metrics:")
-    gold_df.select("coin_id", "avg_price_usd", "market_cap_usd", "volume_24h").show(5, truncate=False)
+    print(f"✅ Gold Layer: {gold_count} registros agregados")
+    print(f"\n📊 Amostra das agregações:")
+    df_gold.limit(5).display()
     
 except Exception as e:
-    logger.log_event("gold_transformation_error", {"error": str(e)}, level="ERROR")
+    logger.log_event("gold_aggregation_error", {"error": str(e)}, level="ERROR")
     raise
 
 # COMMAND ----------
@@ -141,22 +152,22 @@ except Exception as e:
 # COMMAND ----------
 
 # Criar views temporárias para o notebook de loading acessar
-silver_df.createOrReplaceTempView("silver_crypto_temp")
-gold_df.createOrReplaceTempView("gold_crypto_temp")
+df_silver.createOrReplaceTempView("crypto_data_silver")
+df_gold.createOrReplaceTempView("crypto_data_gold")
 
 logger.log_event("temp_views_created", {
-    "silver_view": "silver_crypto_temp",
-    "gold_view": "gold_crypto_temp"
+    "silver_view": "crypto_data_silver",
+    "gold_view": "crypto_data_gold"
 })
 
 print("✅ Views temporárias criadas:")
-print("   - silver_crypto_temp")
-print("   - gold_crypto_temp")
+print("   - crypto_data_silver")
+print("   - crypto_data_gold")
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Finalização
+# MAGIC ## Resultado Final
 
 # COMMAND ----------
 
@@ -167,13 +178,15 @@ result = {
     "status": "success",
     "silver_records": silver_count,
     "gold_records": gold_count,
-    "duration_seconds": duration,
-    "validation": validation_results
+    "duration_seconds": duration
 }
 
 logger.log_event("transformation_completed", result)
 
-print(f"\n⏱️  Duração total: {duration:.2f}s")
+print(f"\n✅ Transformação completa!")
+print(f"   Bronze → Silver: {silver_count} registros")
+print(f"   Silver → Gold: {gold_count} agregações")
+print(f"   ⏱️  Duração: {duration:.2f}s")
 
 # COMMAND ----------
 
