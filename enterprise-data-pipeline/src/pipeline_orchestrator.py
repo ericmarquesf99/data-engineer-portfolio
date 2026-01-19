@@ -82,7 +82,7 @@ class PipelineOrchestrator:
         Phase 1: Extract data from API
         
         Returns:
-            Path to extracted data file
+            Path to extracted data file (DBFS or local)
         """
         self.logger.info("=" * 80)
         self.logger.info("PHASE 1: EXTRACTION")
@@ -101,9 +101,18 @@ class PipelineOrchestrator:
             self.metrics['records_extracted'] = len(data)
             self.logger.info(f"✅ Extraction completed: {len(data)} records")
             
-            # Save to file
-            output_path = f'../logs/crypto_data_{self.run_id}.json'
+            # Save to file (DBFS if available, local otherwise)
+            if os.path.exists('/dbfs'):
+                # Running in Databricks - use DBFS
+                output_path = f"dbfs:/mnt/data/bronze/crypto/crypto_data_{self.run_id}.json"
+                self.logger.info("Saving to DBFS (Databricks)")
+            else:
+                # Running locally
+                output_path = f'../logs/crypto_data_{self.run_id}.json'
+                self.logger.info("Saving to local filesystem")
+            
             extractor.save_to_json(data, output_path)
+            self.logger.info(f"📁 Data saved to: {output_path}")
             
             return output_path
             

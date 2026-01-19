@@ -205,28 +205,78 @@ class APIExtractor:
     
     def save_to_json(self, data: List[Dict], output_path: str):
         """
-        Save extracted data to JSON file
+        Save extracted data to JSON file (DBFS or local)
         
         Args:
             data: Data to save
-            output_path: Path to output file
+            output_path: Path to output file (supports dbfs:// or local paths)
         """
         logger.info(f"Saving data to {output_path}")
         
         try:
-            with open(output_path, 'w', encoding='utf-8') as f:
-                json.dump(data, f, indent=2, ensure_ascii=False)
+            # Check if running in Databricks and path is DBFS
+            if output_path.startswith('dbfs:/'):
+                self._save_to_dbfs(data, output_path)
+            else:
+                # Local filesystem
+                with open(output_path, 'w', encoding='utf-8') as f:
+                    json.dump(data, f, indent=2, ensure_ascii=False)
             
             logger.info(f"Data saved successfully: {len(data)} records")
             
         except Exception as e:
             logger.error(f"Failed to save data: {e}")
             raise
+    
+    def _save_to_dbfs(self, data: List[Dict], dbfs_path: str):
+        """
+        Save data to Databricks File System (DBFS)
+        
+        Args:
+            data: Data to save
+            dbfs_path: DBFS path (e.g., dbfs:/mnt/data/bronze/crypto_data.json)
+        """
+        try:
+            # Convert dbfs:/ to /dbfs/ for file operations
+            local_dbfs_path = dbfs_path.replace('dbfs:/', '/dbfs/')
+            
+            # Ensure directory exists
+            import os
+            os.makedirs(os.path.dirname(local_dbfs_path), exist_ok=True)
+            
+            # Write to DBFS
+            with open(local_dbfs_path, 'w', encoding='utf-8') as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+            
+            logger.info(f"Data written to DBFS: {dbfs_path}")
+            
+        except Exception as e:
+            logger.error(f"Failed to write to DBFS: {e}")
+            # Fallback: try using dbutils if available
+            try:
+                from pyspark.dbutils import DBUtils
+                from pyspark.sql import SparkSession
+                
+                spark = SparkSession.builder.getOrCreate()
+                dbutils = DBUtils(spark)
+                
+                # Write as temp file then move to DBFS
+                temp_file = f"/tmp/crypto_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+                with open(temp_file, 'w', encoding='utf-8') as f:
+                    json.dump(data, f, indent=2, ensure_ascii=False)
+                
+                dbutils.fs.cp(f"file:{temp_file}", dbfs_path)
+                logger.info(f"Data copied to DBFS via dbutils: {dbfs_path}")
+                
+            except Exception as dbutils_error:
+                logger.error(f"DBFS fallback also failed: {dbutils_error}")
+                raise
 
 
 def main():
     """Main execution function"""
     import yaml
+    import os
     
     # Load configuration
     with open('../config/config.yaml', 'r') as f:
@@ -240,10 +290,21 @@ def main():
     
     # Save to file
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    output_path = f'../logs/crypto_data_{timestamp}.json'
+    
+    # Check if running in Databricks (DBFS available)
+    if os.path.exists('/dbfs'):
+        # Save to DBFS
+        output_path = f"dbfs:/mnt/data/bronze/crypto/crypto_data_{timestamp}.json"
+        logger.info("Running in Databricks - saving to DBFS")
+    else:
+        # Save locally
+        output_path = f'../logs/crypto_data_{timestamp}.json'
+        logger.info("Running locally - saving to logs/")
+    
     extractor.save_to_json(data, output_path)
     
     print(f"✅ Extraction completed: {len(data)} records")
+    print(f"📁 Saved to: {output_path}")
 
 
 if __name__ == "__main__":
