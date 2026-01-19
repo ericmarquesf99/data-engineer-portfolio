@@ -23,7 +23,7 @@ sys.path.append("/Workspace/Users/ericmarques1999@gmail.com/data-engineer-portfo
 
 from extractors.coingecko_extractor import APIExtractor
 from utils.logging_config import StructuredLogger 
-from utils.config_loader import load_config
+from utils.config_loader import load_config, get_snowflake_credentials_from_keyvault
 
 # COMMAND ----------
 
@@ -50,22 +50,21 @@ try:
     # Carregar configuração
     config = load_config()
     
+    # Recuperar credenciais Snowflake do Azure Key Vault
+    try:
+        snowflake_config = get_snowflake_credentials_from_keyvault("kv-crypto-pipeline")
+        logger.log_event("snowflake_credentials_loaded", {"vault": "kv-crypto-pipeline"})
+    except Exception as e:
+        logger.log_event("keyvault_error", {"error": str(e)})
+        snowflake_config = None
+    
     # Inicializar extrator com config
-    extractor = CryptoExtractor(config)
+    extractor = APIExtractor(config)
     
-    # Obter dados de múltiplas criptomoedas
-    crypto_ids = [
-        'bitcoin', 'ethereum', 'binancecoin', 'cardano', 'solana',
-        'polkadot', 'dogecoin', 'avalanche-2', 'polygon', 'chainlink'
-    ]
+    # Extrair múltiplas páginas de dados
+    logger.log_event("fetching_crypto_markets", {"pages": 3, "per_page": 100})
     
-    logger.log_event("fetching_crypto_data", {"coins": len(crypto_ids)})
-    
-    all_data = []
-    for crypto_id in crypto_ids:
-        data = extractor.get_crypto_data(crypto_id)
-        if data:
-            all_data.append(data)
+    all_data = extractor.extract_multiple_pages(num_pages=3, per_page=100)
     
     # Adicionar metadados
     extraction_metadata = {
@@ -73,7 +72,7 @@ try:
         "run_id": run_id,
         "source": "coingecko_api_v3",
         "record_count": len(all_data),
-        "crypto_ids": crypto_ids
+        "snowflake_available": snowflake_config is not None
     }
     
     # Salvar no DBFS
