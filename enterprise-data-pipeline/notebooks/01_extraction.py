@@ -29,17 +29,8 @@ from utils.config_loader import load_config, get_snowflake_credentials_from_keyv
 
 # Obter parâmetros do notebook pai
 dbutils.widgets.text("run_id", "", "Run ID")
-dbutils.widgets.text("output_path", "/Workspace/crypto_data/bronze/", "Output Path")
 
 run_id = dbutils.widgets.get("run_id")
-output_path = dbutils.widgets.get("output_path")
-
-# Para Community Edition - usar /Workspace/ ao invés de /mnt/
-# Criar diretório se não existir
-try:
-    dbutils.fs.mkdirs(output_path)
-except:
-    pass  # Diretório pode já existir
 
 logger = StructuredLogger("extraction")
 logger.log_event("extraction_notebook_started", {"run_id": run_id})
@@ -82,44 +73,36 @@ try:
         "snowflake_available": snowflake_config is not None
     }
     
-    # Salvar no DBFS (Community Edition - usar /Workspace/)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_file = f"{output_path}crypto_data_{timestamp}.json"
+    # Criar DataFrame Spark a partir dos dados
+    from pyspark.sql.types import StructType, StructField, StringType, DoubleType, LongType, BooleanType
     
-    full_data = {
-        "metadata": extraction_metadata,
-        "data": all_data
-    }
+    # Converter para DataFrame
+    df = spark.createDataFrame(all_data)
     
-    # Salvar como arquivo JSON
-    import tempfile
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as tmp:
-        json.dump(full_data, tmp, indent=2)
-        tmp_path = tmp.name
-    
-    # Copiar para Workspace
-    dbutils.fs.cp(f"file:{tmp_path}", output_file, recurse=False)
+    # Salvar como tabela temporária para uso nos notebooks seguintes
+    df.createOrReplaceTempView("crypto_data_raw")
     
     end_time = datetime.now()
     duration = (end_time - start_time).total_seconds()
     
     logger.log_event("extraction_completed", {
-        "file": output_file,
         "records": len(all_data),
         "duration_seconds": duration
     })
     
-    # Resultado
+    # Exibir resultado
+    print(f"✅ Extração completa: {len(all_data)} registros")
+    print(f"⏱️  Duração: {duration:.2f}s")
+    print(f"\n📊 DataFrame salvo como: crypto_data_raw")
+    
+    df.display()
+    
+    # Retornar resultado
     result = {
         "status": "success",
-        "output_file": output_file,
         "record_count": len(all_data),
         "duration_seconds": duration
     }
-    
-    print(f"✅ Extração completa: {len(all_data)} criptomoedas")
-    print(f"📁 Arquivo salvo: {output_file}")
-    print(f"⏱️  Duração: {duration:.2f}s")
     
 except Exception as e:
     logger.log_event("extraction_error", {"error": str(e)}, level="ERROR")
