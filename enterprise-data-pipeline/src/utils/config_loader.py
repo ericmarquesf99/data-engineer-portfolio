@@ -105,9 +105,14 @@ def get_azure_keyvault_secrets(vault_name: str, keys: list) -> Dict[str, str]:
         
     Raises:
         ConfigurationError: If vault access fails or secret not found
+        
+    Environment Variables (for Service Principal authentication):
+        AZURE_TENANT_ID: Azure AD tenant ID
+        AZURE_CLIENT_ID: Service Principal client ID
+        AZURE_CLIENT_SECRET: Service Principal client secret
     """
     try:
-        from azure.identity import DefaultAzureCredential
+        from azure.identity import ClientSecretCredential, DefaultAzureCredential
         from azure.keyvault.secrets import SecretClient
     except ImportError:
         raise ConfigurationError(
@@ -116,7 +121,23 @@ def get_azure_keyvault_secrets(vault_name: str, keys: list) -> Dict[str, str]:
         )
     
     vault_url = f"https://{vault_name}.vault.azure.net/"
-    credential = DefaultAzureCredential()
+    
+    # Tentar autenticar via Service Principal (variáveis de ambiente)
+    tenant_id = os.getenv('AZURE_TENANT_ID')
+    client_id = os.getenv('AZURE_CLIENT_ID')
+    client_secret = os.getenv('AZURE_CLIENT_SECRET')
+    
+    if tenant_id and client_id and client_secret:
+        # Service Principal com credenciais explícitas
+        credential = ClientSecretCredential(
+            tenant_id=tenant_id,
+            client_id=client_id,
+            client_secret=client_secret
+        )
+    else:
+        # Fallback para DefaultAzureCredential (Managed Identity, Azure CLI, etc)
+        credential = DefaultAzureCredential()
+    
     client = SecretClient(vault_url=vault_url, credential=credential)
     
     secrets = {}

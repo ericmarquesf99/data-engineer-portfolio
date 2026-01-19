@@ -25,18 +25,33 @@ dbutils.library.restartPython()
 
 # COMMAND ----------
 
-from azure.identity import DefaultAzureCredential
+from azure.identity import ClientSecretCredential
 from azure.keyvault.secrets import SecretClient
 
-# Configurar Key Vault
+# ============================================================================
+# CONFIGURAÇÃO - Substitua pelos seus valores
+# ============================================================================
+
 vault_name = "kv-crypto-pipeline"
 vault_url = f"https://{vault_name}.vault.azure.net/"
 
+# Service Principal (crie no Azure Portal)
+# https://portal.azure.com → Azure Active Directory → App registrations → New registration
+AZURE_TENANT_ID = "518d08e5-ea11-4f47-bab2-dbaa4ebbbb76"
+AZURE_CLIENT_ID = "6ef62d52-f175-4c59-b4fc-5b7c59e5384c"
+AZURE_CLIENT_SECRET = "9e951b28-962c-4818-bfe7-396b5cb156c0"
+
 print(f"📍 Conectando em: {vault_url}")
+print(f"🔐 Usando Service Principal: {AZURE_CLIENT_ID[:8]}...")
 
 try:
-    # Autenticar
-    credential = DefaultAzureCredential()
+    # Autenticar com Service Principal
+    credential = ClientSecretCredential(
+        tenant_id=AZURE_TENANT_ID,
+        client_id=AZURE_CLIENT_ID,
+        client_secret=AZURE_CLIENT_SECRET
+    )
+    
     client = SecretClient(vault_url=vault_url, credential=credential)
     
     # Tentar recuperar um secret
@@ -48,9 +63,10 @@ try:
 except Exception as e:
     print(f"❌ ERRO: {str(e)}")
     print("\n💡 Soluções:")
-    print("   1. Verificar se o Key Vault existe: 'kv-crypto-pipeline'")
-    print("   2. Verificar permissões no Azure Portal")
-    print("   3. Configurar Managed Identity no cluster Databricks")
+    print("   1. Criar Service Principal no Azure Portal")
+    print("   2. Dar permissões 'Get' e 'List' no Key Vault para o Service Principal")
+    print("   3. Copiar tenant_id, client_id e client_secret para o código acima")
+    print("\n📚 Tutorial: https://learn.microsoft.com/azure/key-vault/general/authentication")
 
 # COMMAND ----------
 
