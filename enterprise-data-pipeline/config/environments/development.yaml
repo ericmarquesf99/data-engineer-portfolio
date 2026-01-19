@@ -1,0 +1,38 @@
+# Development Environment Configuration
+# =====================================
+
+# Override base config for development environment
+
+databricks:
+  spark:
+    app_name: "CryptoDataPipeline-DEV"
+    shuffle_partitions: 2  # Reduced for local testing
+    log_level: "DEBUG"
+
+api:
+  coingecko:
+    rate_limit_per_minute: 10  # More conservative in dev
+    timeout: 30
+
+data_quality:
+  validation_rules:
+    max_null_percentage: 10  # More lenient for testing
+    required_columns:
+      - id
+      - symbol
+      - name
+    
+snowflake:
+  warehouse: "COMPUTE_WH"  # Smaller warehouse for dev
+  database: "CRYPTO_DATA_DEV"
+  schema: "PUBLIC"
+  
+  tables:
+    silver: "silver_crypto_clean_dev"
+    gold: "gold_crypto_metrics_dev"
+    metadata: "pipeline_metadata_dev"
+
+logging:
+  level: "DEBUG"
+  structured: true
+  output_file: "logs/pipeline_dev.json"

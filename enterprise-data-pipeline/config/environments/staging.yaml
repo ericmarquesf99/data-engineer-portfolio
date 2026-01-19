@@ -1,0 +1,46 @@
+# Staging Environment Configuration
+# ==================================
+
+# Override base config for staging environment
+
+databricks:
+  spark:
+    app_name: "CryptoDataPipeline-STAGING"
+    shuffle_partitions: 50
+    log_level: "INFO"
+
+api:
+  coingecko:
+    rate_limit_per_minute: 30
+    timeout: 30
+    retry_attempts: 4
+
+data_quality:
+  validation_rules:
+    max_null_percentage: 3
+    required_columns:
+      - id
+      - symbol
+      - name
+      - current_price
+      - market_cap
+
+snowflake:
+  warehouse: "COMPUTE_WH"
+  database: "CRYPTO_DATA_STAGING"
+  schema: "PUBLIC"
+  
+  tables:
+    silver: "silver_crypto_clean_stg"
+    gold: "gold_crypto_metrics_stg"
+    metadata: "pipeline_metadata_stg"
+
+logging:
+  level: "INFO"
+  structured: true
+  output_file: "logs/pipeline_staging.json"
+
+monitoring:
+  enabled: true
+  alert_on_failure: false
+  metrics_export: true

@@ -1,0 +1,119 @@
+# Databricks notebook source
+# MAGIC %md
+# MAGIC # 📥 Extraction Notebook - Bronze Layer
+# MAGIC 
+# MAGIC **Fonte:** CoinGecko API v3  
+# MAGIC **Destino:** DBFS (Bronze Layer)  
+# MAGIC **Formato:** JSON files com timestamp
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Setup
+
+# COMMAND ----------
+
+import sys
+import os
+from datetime import datetime
+import json
+
+# Adicionar src ao path
+sys.path.append("/Workspace/Repos/<username>/enterprise-data-pipeline/src")
+
+from extractors.coingecko_extractor import CryptoExtractor
+from utils.logging_config import StructuredLogger
+
+# COMMAND ----------
+
+# Obter parâmetros do notebook pai
+dbutils.widgets.text("run_id", "", "Run ID")
+dbutils.widgets.text("output_path", "dbfs:/mnt/data/bronze/crypto/", "Output Path")
+
+run_id = dbutils.widgets.get("run_id")
+output_path = dbutils.widgets.get("output_path")
+
+logger = StructuredLogger("extraction")
+logger.log_event("extraction_notebook_started", {"run_id": run_id})
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Executar Extração
+
+# COMMAND ----------
+
+start_time = datetime.now()
+
+try:
+    # Inicializar extrator
+    extractor = CryptoExtractor()
+    
+    # Obter dados de múltiplas criptomoedas
+    crypto_ids = [
+        'bitcoin', 'ethereum', 'binancecoin', 'cardano', 'solana',
+        'polkadot', 'dogecoin', 'avalanche-2', 'polygon', 'chainlink'
+    ]
+    
+    logger.log_event("fetching_crypto_data", {"coins": len(crypto_ids)})
+    
+    all_data = []
+    for crypto_id in crypto_ids:
+        data = extractor.get_crypto_data(crypto_id)
+        if data:
+            all_data.append(data)
+    
+    # Adicionar metadados
+    extraction_metadata = {
+        "extraction_timestamp": datetime.now().isoformat(),
+        "run_id": run_id,
+        "source": "coingecko_api_v3",
+        "record_count": len(all_data),
+        "crypto_ids": crypto_ids
+    }
+    
+    # Salvar no DBFS
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_file = f"{output_path}crypto_data_{timestamp}.json"
+    
+    full_data = {
+        "metadata": extraction_metadata,
+        "data": all_data
+    }
+    
+    # Usar dbutils para salvar no DBFS
+    dbutils.fs.put(output_file, json.dumps(full_data, indent=2), overwrite=True)
+    
+    end_time = datetime.now()
+    duration = (end_time - start_time).total_seconds()
+    
+    logger.log_event("extraction_completed", {
+        "file": output_file,
+        "records": len(all_data),
+        "duration_seconds": duration
+    })
+    
+    # Resultado
+    result = {
+        "status": "success",
+        "output_file": output_file,
+        "record_count": len(all_data),
+        "duration_seconds": duration
+    }
+    
+    print(f"✅ Extração completa: {len(all_data)} criptomoedas")
+    print(f"📁 Arquivo salvo: {output_file}")
+    print(f"⏱️  Duração: {duration:.2f}s")
+    
+except Exception as e:
+    logger.log_event("extraction_error", {"error": str(e)}, level="ERROR")
+    result = {
+        "status": "failed",
+        "error": str(e)
+    }
+    raise
+
+# COMMAND ----------
+
+# Retornar resultado
+dbutils.notebook.exit(json.dumps(result))

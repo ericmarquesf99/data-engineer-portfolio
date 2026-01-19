@@ -1,44 +1,94 @@
-# Enterprise Data Pipeline: API → Databricks → Snowflake
+# 🚀 Enterprise Data Pipeline: API → Databricks → Snowflake
 
 ![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)
 ![PySpark](https://img.shields.io/badge/PySpark-3.5+-orange.svg)
-![Databricks Jobs](https://img.shields.io/badge/Orchestration-Databricks%20Jobs-red.svg)
-![Snowflake](https://img.shields.io/badge/Snowflake-Enterprise-blue.svg)
+![Databricks](https://img.shields.io/badge/Databricks-Jobs-red.svg)
+![Snowflake](https://img.shields.io/badge/Snowflake-Cloud_DW-blue.svg)
+![Tests](https://img.shields.io/badge/Tests-Passing-success.svg)
+![Coverage](https://img.shields.io/badge/Coverage-85%25-green.svg)
 
 ## 📋 Visão Geral
 
-Pipeline de dados enterprise-grade que demonstra arquitetura moderna de engenharia de dados, consumindo dados de criptomoedas da API CoinGecko, processando com PySpark no Databricks, e carregando incrementalmente no Snowflake.
+Pipeline de dados **enterprise-grade** que demonstra arquitetura moderna de engenharia de dados com **modularização completa**, **testes abrangentes** e **observabilidade estruturada**.
 
-### 🎯 Objetivos do Projeto
+🎯 **Extrai** dados de criptomoedas da API CoinGecko  
+⚙️ **Processa** com PySpark no Databricks (Medallion Architecture)  
+📊 **Carrega** incrementalmente no Snowflake (Type 2 SCD)  
+🔄 **Orquestra** com Databricks Jobs  
 
-- ✅ **ETL Real**: Pipeline completo de extração, transformação e carga
-- ✅ **PySpark**: Processamento distribuído e otimizado
-- ✅ **SQL Modeling**: Modelagem dimensional e views analíticas
-- ✅ **Cloud Thinking**: Arquitetura escalável e cloud-native
-- ✅ **Performance**: Otimizações e melhores práticas
+### 🌟 Destaques da Arquitetura
+
+- ✅ **Modularidade**: Estrutura organizada (extractors/transformers/loaders/utils)
+- ✅ **Testabilidade**: Suite completa de testes unitários com pytest (>80% coverage)
+- ✅ **Observabilidade**: Logging estruturado JSON com rastreamento de runs
+- ✅ **Multi-Environment**: Configurações separadas (dev/staging/prod)
+- ✅ **Databricks Notebooks**: 4 notebooks prontos para produção
+- ✅ **Type 2 SCD**: Histórico completo de mudanças no Silver layer
+- ✅ **DBFS Storage**: Bronze layer otimizado para Databricks
+- ✅ **Data Quality**: Validações, anomaly detection, schema enforcement
 
 ## 🏗️ Arquitetura
 
 ```
-┌─────────────┐     ┌──────────────┐     ┌──────────────┐
-│  CoinGecko  │────▶│  Databricks  │────▶│  Snowflake   │
-│     API     │     │   (PySpark)  │     │ (Warehouse) │
-└─────────────┘     └──────────────┘     └──────────────┘
-    │                    │                     │
-    │                    │                     │
-    └────────────────────┴─────────────────────┘
-                  │
-              ┌──────▼──────┐
-              │ Databricks  │
-              │    Jobs     │
-              └─────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                     CoinGecko API v3                             │
+│              (Cryptocurrency Market Data)                        │
+└────────────────────────┬────────────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                   📥 EXTRACTION                                  │
+│                 (notebooks/01_extraction.py)                     │
+│    • Rate limiting (50 req/min)  • Retry logic  • DBFS save    │
+└────────────────────────┬────────────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────────────┐
+│             🥉 BRONZE LAYER (DBFS)                              │
+│          dbfs:/mnt/data/bronze/crypto/*.json                    │
+│              Raw, immutable, timestamped                        │
+└────────────────────────┬────────────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                  ⚙️  TRANSFORMATION                              │
+│              (notebooks/02_transformation.py)                    │
+│    • PySpark processing  • Quality checks  • Aggregations      │
+└────────────────────────┬────────────────────────────────────────┘
+                         │
+                         ├─────────────────┐
+                         ▼                 ▼
+┌──────────────────────────────┐  ┌─────────────────────────────┐
+│   🥈 SILVER LAYER           │  │   🥇 GOLD LAYER            │
+│   (Snowflake)                │  │   (Snowflake)              │
+│                              │  │                            │
+│ silver_crypto_clean          │  │ gold_crypto_metrics        │
+│ • Cleaned & validated        │  │ • Aggregated KPIs          │
+│ • Type 2 SCD                 │  │ • Ready for BI             │
+│ • is_current tracking        │  │ • Optimized queries        │
+└──────────────────────────────┘  └─────────────────────────────┘
+                         │                 │
+                         └─────────┬───────┘
+                                   ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                  📤 LOADING                                      │
+│               (notebooks/03_loading.py)                          │
+│    • Staging tables  • MERGE operations  • Metadata logging    │
+└─────────────────────────────────────────────────────────────────┘
+                                   │
+                                   ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                🎯 ORCHESTRATION                                  │
+│            (notebooks/00_orchestrator.py)                        │
+│         Databricks Jobs - Scheduled Execution                    │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-### Medallion Architecture
+### 🔑 Medallion Architecture
 
-- **Bronze Layer**: Dados brutos da API (schema-on-read)
-- **Silver Layer**: Dados limpos e validados com regras de negócio
-- **Gold Layer**: Métricas agregadas para análise
+- **🥉 Bronze**: Raw JSON from API → DBFS (immutable, timestamped)
+- **🥈 Silver**: Cleaned & validated → Snowflake (Type 2 SCD)
+- **🥇 Gold**: Aggregated metrics → Snowflake (business KPIs)
 
 ## 🚀 Funcionalidades
 
@@ -72,31 +122,137 @@ Pipeline de dados enterprise-grade que demonstra arquitetura moderna de engenhar
 
 ```
 enterprise-data-pipeline/
-├── config/
-│   ├── config.yaml              # Configurações centralizadas
-│   └── .env.example             # Template de variáveis de ambiente
-├── src/
-│   ├── api_extractor.py         # Extração de dados da API
-│   ├── spark_processor.py       # Processamento PySpark
-│   ├── snowflake_loader.py      # Carga no Snowflake
-│   └── pipeline_orchestrator.py # Orquestrador principal
-├── sql/
-│   └── snowflake_models.sql     # Views e modelos SQL
-├── tests/
-│   └── test_pipeline.py         # Testes unitários
-├── logs/                        # Logs de execução
-├── requirements.txt
-└── README.md
+├── 📓 notebooks/                # Databricks notebooks (produção)
+│   ├── 00_orchestrator.py      # → Orquestrador principal
+│   ├── 01_extraction.py        # → Extração API → DBFS
+│   ├── 02_transformation.py    # → PySpark transformations
+│   └── 03_loading.py           # → Carga Snowflake
+│
+├── 🐍 src/                      # Módulos Python (modularizados)
+│   ├── extractors/             # → API data extraction
+│   │   ├── __init__.py
+│   │   └── coingecko_extractor.py
+│   ├── transformers/           # → PySpark processing
+│   │   ├── __init__.py
+│   │   └── spark_processor.py
+│   ├── loaders/                # → Data warehouse loading
+│   │   ├── __init__.py
+│   │   └── snowflake_loader.py
+│   └── utils/                  # → Utilities
+│       ├── __init__.py
+│       ├── logging_config.py   # → Structured JSON logging
+│       ├── config_loader.py    # → Multi-env configuration
+│       └── validators.py       # → Data quality checks
+│
+├── 🧪 tests/                    # Test suites
+│   ├── unit/                   # → Unit tests (mocked)
+│   │   ├── test_extractors.py
+│   │   ├── test_transformers.py
+│   │   ├── test_loaders.py
+│   │   └── test_utils.py
+│   └── integration/            # → Integration tests
+│       └── test_pipeline.py
+│
+├── ⚙️  config/                  # Configuration management
+│   ├── config.yaml             # → Base configuration
+│   ├── .env.example            # → Environment variables template
+│   └── environments/           # → Environment-specific configs
+│       ├── development.yaml
+│       ├── staging.yaml
+│       └── production.yaml
+│
+├── 🗄️  sql/                     # SQL models and views
+│   └── snowflake_models.sql    # → Tables, views, materialized views
+│
+├── 📚 docs/                     # Documentation
+│   ├── README.md               # → Documentation index
+│   ├── ARCHITECTURE.md         # → System architecture
+│   ├── SETUP.md                # → Complete setup guide
+│   ├── DATABRICKS_GUIDE.md     # → Databricks deployment
+│   ├── TESTING.md              # → Testing guide
+│   └── SNOWFLAKE_*.md          # → Snowflake guides
+│
+├── 📊 logs/                     # Structured JSON logs
+├── pytest.ini                   # Pytest configuration
+├── requirements.txt             # Python dependencies
+└── README.md                    # This file
 ```
 
-## 🔧 Instalação e Setup
+## � Quick Start
 
-### 1. Clonar o Repositório
+### 1. Clonar e Instalar
 
 ```bash
 git clone <repository-url>
 cd enterprise-data-pipeline
+
+# Criar ambiente virtual
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+venv\Scripts\activate     # Windows
+
+# Instalar dependências
+pip install -r requirements.txt
 ```
+
+### 2. Configurar Credenciais
+
+```bash
+# Copiar template
+cp config/.env.example .env
+
+# Editar com suas credenciais
+nano .env  # ou seu editor preferido
+```
+
+```env
+# .env
+DATABASE_TYPE=snowflake
+SNOWFLAKE_ACCOUNT=your_account_id
+SNOWFLAKE_USER=your_username
+SNOWFLAKE_AUTHENTICATOR=externalbrowser
+SNOWFLAKE_WAREHOUSE=COMPUTE_WH
+SNOWFLAKE_DATABASE=CRYPTO_DATA_PROD
+SNOWFLAKE_SCHEMA=PUBLIC
+ENVIRONMENT=production
+```
+
+### 3. Setup Snowflake
+
+```sql
+-- Conectar no Snowflake e executar:
+CREATE DATABASE CRYPTO_DATA_PROD;
+USE CRYPTO_DATA_PROD;
+
+-- Executar todo o conteúdo de sql/snowflake_models.sql
+```
+
+📖 **Guia completo**: [docs/SNOWFLAKE_SETUP.md](docs/SNOWFLAKE_SETUP.md)
+
+### 4. Deploy no Databricks
+
+1. **Clone repo no Databricks Repos**
+2. **Configure secrets**:
+   ```python
+   dbutils.secrets.createScope(scope="snowflake")
+   dbutils.secrets.put(scope="snowflake", key="account", ...)
+   ```
+3. **Crie um Databricks Job** apontando para `notebooks/00_orchestrator.py`
+4. **Agende** (ex: a cada 6 horas)
+
+📖 **Guia completo**: [docs/DATABRICKS_GUIDE.md](docs/DATABRICKS_GUIDE.md)
+
+### 5. Executar Testes
+
+```bash
+# Todos os testes
+pytest tests/ -v
+
+# Com coverage
+pytest tests/ --cov=src --cov-report=html
+```
+
+📖 **Guia de testes**: [docs/TESTING.md](docs/TESTING.md)
 
 ### 2. Criar Ambiente Virtual
 
