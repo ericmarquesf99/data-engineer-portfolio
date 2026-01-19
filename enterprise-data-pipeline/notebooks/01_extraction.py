@@ -1,7 +1,7 @@
 # Databricks notebook source
 # MAGIC %md
 # MAGIC # 📥 Extraction Notebook - Bronze Layer
-# MAGIC 
+# MAGIC
 # MAGIC **Fonte:** CoinGecko API v3  
 # MAGIC **Destino:** DBFS (Bronze Layer)  
 # MAGIC **Formato:** JSON files com timestamp
@@ -19,10 +19,12 @@ from datetime import datetime
 import json
 
 # Adicionar src ao path
-sys.path.append("/Workspace/Repos/<username>/enterprise-data-pipeline/src")
+sys.path.append("/Workspace/Users/ericmarques1999@gmail.com/data-engineer-portfolio/enterprise-data-pipeline/src")
 
-from extractors.coingecko_extractor import CryptoExtractor
-from utils.logging_config import StructuredLoggerfrom utils.config_loader import load_config
+from extractors.coingecko_extractor import APIExtractor
+from utils.logging_config import StructuredLogger 
+from utils.config_loader import load_config
+
 # COMMAND ----------
 
 # Obter parâmetros do notebook pai
