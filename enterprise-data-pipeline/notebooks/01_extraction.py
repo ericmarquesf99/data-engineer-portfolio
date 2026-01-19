@@ -17,6 +17,7 @@ import sys
 import os
 from datetime import datetime
 import json
+import pandas as pd
 
 # Adicionar src ao path
 sys.path.append("/Workspace/Users/ericmarques1999@gmail.com/data-engineer-portfolio/enterprise-data-pipeline/src")
@@ -73,11 +74,14 @@ try:
         "snowflake_available": snowflake_config is not None
     }
     
-    # Criar DataFrame Spark a partir dos dados
-    from pyspark.sql.types import StructType, StructField, StringType, DoubleType, LongType, BooleanType
+    # Converter dados para Pandas DataFrame para normalizar tipos
+    pdf = pd.json_normalize(all_data)
     
-    # Converter para DataFrame
-    df = spark.createDataFrame(all_data)
+    # Preencher NaN com None para melhor compatibilidade
+    pdf = pdf.where(pd.notna(pdf), None)
+    
+    # Converter para Spark DataFrame (inferirá schema corretamente)
+    df = spark.createDataFrame(pdf)
     
     # Salvar como tabela temporária para uso nos notebooks seguintes
     df.createOrReplaceTempView("crypto_data_raw")
