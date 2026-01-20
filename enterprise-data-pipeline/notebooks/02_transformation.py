@@ -28,6 +28,22 @@ from utils.config_loader import load_config, get_snowflake_credentials_from_keyv
 
 # COMMAND ----------
 
+# MAGIC %md
+# MAGIC ## Configurar Azure Service Principal
+
+# COMMAND ----------
+
+import os
+
+# Configurar credenciais do Service Principal para Azure Key Vault
+os.environ['AZURE_TENANT_ID'] = "518d08e5-ea11-4f47-bab2-dbaa4ebbbb76"
+os.environ['AZURE_CLIENT_ID'] = "6ef62d52-f175-4c59-b4fc-5b7c59e5384c"
+os.environ['AZURE_CLIENT_SECRET'] = "9e951b28-962c-4818-bfe7-396b5cb156c0"
+
+print("🔐 Service Principal configurado para Azure Key Vault")
+
+# COMMAND ----------
+
 # Obter parâmetros
 dbutils.widgets.text("run_id", "", "Run ID")
 

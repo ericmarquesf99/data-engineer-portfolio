@@ -23,26 +23,44 @@ sys.path.append("/Workspace/Repos/<username>/enterprise-data-pipeline/src")
 
 from loaders.snowflake_loader import SnowflakeLoader
 from utils.logging_config import StructuredLogger
-from utils.config_loader import load_config
+from utils.config_loader import load_config, get_snowflake_credentials_from_keyvault
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Configurar Azure Service Principal
+
+# COMMAND ----------
+
+import os
+
+# Configurar credenciais do Service Principal para Azure Key Vault
+os.environ['AZURE_TENANT_ID'] = "518d08e5-ea11-4f47-bab2-dbaa4ebbbb76"
+os.environ['AZURE_CLIENT_ID'] = "6ef62d52-f175-4c59-b4fc-5b7c59e5384c"
+os.environ['AZURE_CLIENT_SECRET'] = "9e951b28-962c-4818-bfe7-396b5cb156c0"
+
+print("🔐 Service Principal configurado para Azure Key Vault")
 
 # COMMAND ----------
 
 # Obter parâmetros
 dbutils.widgets.text("run_id", "", "Run ID")
-dbutils.widgets.text("snowflake_account", "", "Snowflake Account")
-dbutils.widgets.text("snowflake_user", "", "Snowflake User")
-dbutils.widgets.text("snowflake_password", "", "Snowflake Password")
-dbutils.widgets.text("snowflake_warehouse", "", "Snowflake Warehouse")
-dbutils.widgets.text("snowflake_database", "", "Snowflake Database")
-dbutils.widgets.text("snowflake_schema", "", "Snowflake Schema")
 
 run_id = dbutils.widgets.get("run_id")
-snowflake_account = dbutils.widgets.get("snowflake_account")
-snowflake_user = dbutils.widgets.get("snowflake_user")
-snowflake_password = dbutils.widgets.get("snowflake_password")
-snowflake_warehouse = dbutils.widgets.get("snowflake_warehouse")
-snowflake_database = dbutils.widgets.get("snowflake_database")
-snowflake_schema = dbutils.widgets.get("snowflake_schema")
+
+# Recuperar credenciais Snowflake do Azure Key Vault
+try:
+    snowflake_config = get_snowflake_credentials_from_keyvault("kv-crypto-pipeline")
+    snowflake_account = snowflake_config['account']
+    snowflake_user = snowflake_config['user']
+    snowflake_password = snowflake_config['password']
+    snowflake_warehouse = snowflake_config['warehouse']
+    snowflake_database = snowflake_config['database']
+    snowflake_schema = snowflake_config['schema']
+    print("✅ Credenciais Snowflake recuperadas do Key Vault")
+except Exception as e:
+    print(f"❌ Erro ao recuperar credenciais: {e}")
+    raise
 
 logger = StructuredLogger("loading")
 logger.log_event("loading_notebook_started", {
