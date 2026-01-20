@@ -102,7 +102,7 @@ try:
     logger.log_event("loading_silver_started", {})
     
     # Ler dados da tabela SILVER do Snowflake
-    print("📊 Lendo dados da tabela silver.silver_crypto_clean...")
+    print("📊 Lendo dados da tabela SILVER.silver_crypto_clean...")
     
     cur.execute("USE SCHEMA SILVER")
     cur.execute("SELECT * FROM silver_crypto_clean WHERE is_current = TRUE")
