@@ -90,7 +90,7 @@ cur.execute("USE SCHEMA BRONZE")
 
 # Buscar dados da tabela BRONZE_CRYPTO_RAW
 logger.log_event("reading_bronze_table", {"table": "BRONZE.BRONZE_CRYPTO_RAW"})
-print("📊 Lendo dados da tabela BRONZE.BRONZE_CRYPTO_RAW...")
+print("📊 Reading data from BRONZE.BRONZE_CRYPTO_RAW table...")
 
 cur.execute("""
     SELECT 
