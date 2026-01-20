@@ -5,11 +5,19 @@
 -- ============================================================================
 
 USE DATABASE CRYPTO_DB;
-USE SCHEMA PUBLIC;
+
+-- ============================================================================
+-- CREATE SCHEMAS
+-- ============================================================================
+
+CREATE SCHEMA IF NOT EXISTS SILVER COMMENT = 'Silver Layer - Cleaned and validated data';
+CREATE SCHEMA IF NOT EXISTS GOLD COMMENT = 'Gold Layer - Aggregated business metrics';
 
 -- ============================================================================
 -- BASE TABLES - SILVER LAYER
 -- ============================================================================
+
+USE SCHEMA SILVER;
 
 -- Silver Table: Clean and validated crypto data
 CREATE TABLE IF NOT EXISTS silver_crypto_clean (
@@ -68,6 +76,8 @@ ALTER TABLE silver_crypto_clean CLUSTER BY (coin_id, valid_from);
 -- BASE TABLES - GOLD LAYER
 -- ============================================================================
 
+USE SCHEMA GOLD;
+
 -- Gold Table: Aggregated metrics by category
 CREATE TABLE IF NOT EXISTS gold_crypto_metrics (
     metric_date DATE NOT NULL,
@@ -107,6 +117,8 @@ ALTER TABLE gold_crypto_metrics CLUSTER BY (metric_date, market_cap_category);
 -- METADATA TABLES
 -- ============================================================================
 
+USE SCHEMA PUBLIC;
+
 -- Pipeline execution metadata
 CREATE TABLE IF NOT EXISTS pipeline_metadata (
     run_id VARCHAR(100) PRIMARY KEY,
@@ -133,6 +145,8 @@ CREATE TABLE IF NOT EXISTS pipeline_metadata (
 -- ANALYTICS VIEWS
 -- ============================================================================
 
+USE SCHEMA SILVER;
+
 -- View: Current Market State
 CREATE OR REPLACE VIEW v_current_market_state AS
 SELECT 
@@ -151,7 +165,7 @@ SELECT
     is_price_anomaly,
     is_volume_spike,
     updated_at
-FROM silver_crypto_clean
+FROM SILVER.silver_crypto_clean
 WHERE is_current = TRUE
 ORDER BY market_cap_rank;
 
@@ -169,7 +183,7 @@ SELECT
         WHEN valid_to IS NULL THEN DATEDIFF(day, valid_from, CURRENT_TIMESTAMP())
         ELSE DATEDIFF(day, valid_from, valid_to)
     END as days_at_price
-FROM silver_crypto_clean
+FROM SILVER.silver_crypto_clean
 ORDER BY coin_id, valid_from DESC;
 
 -- View: Top Movers (24h)
@@ -185,7 +199,7 @@ SELECT
         WHEN price_change_percentage_24h > 0 THEN 'GAINER'
         ELSE 'LOSER'
     END as movement_type
-FROM silver_crypto_clean
+FROM SILVER.silver_crypto_clean
 WHERE is_current = TRUE
     AND price_change_percentage_24h IS NOT NULL
 ORDER BY ABS(price_change_percentage_24h) DESC
@@ -199,7 +213,7 @@ SELECT
     market_cap,
     (market_cap / SUM(market_cap) OVER ()) * 100 as market_dominance_pct,
     RANK() OVER (ORDER BY market_cap DESC) as dominance_rank
-FROM silver_crypto_clean
+FROM SILVER.silver_crypto_clean
 WHERE is_current = TRUE
     AND market_cap IS NOT NULL
 ORDER BY market_cap DESC;
@@ -214,7 +228,7 @@ SELECT
     MIN(price_volatility_24h) as min_volatility,
     MAX(price_volatility_24h) as max_volatility,
     PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY price_volatility_24h) as median_volatility
-FROM silver_crypto_clean
+FROM SILVER.silver_crypto_clean
 WHERE is_current = TRUE
     AND price_volatility_24h IS NOT NULL
 GROUP BY market_cap_category;
@@ -237,7 +251,7 @@ SELECT
     COUNT(CASE WHEN is_price_anomaly THEN 1 END) as num_anomalies,
     COUNT(CASE WHEN is_volume_spike THEN 1 END) as num_volume_spikes,
     CURRENT_TIMESTAMP() as created_at
-FROM silver_crypto_clean
+FROM SILVER.silver_crypto_clean
 WHERE is_current = TRUE
 GROUP BY DATE(updated_at), market_cap_category;
 
@@ -256,7 +270,7 @@ SELECT
     COUNT(CASE WHEN is_price_anomaly THEN 1 END) as anomaly_count,
     (1 - (COUNT(CASE WHEN current_price IS NULL THEN 1 END)::FLOAT / COUNT(*))) * 100 as price_completeness_pct,
     CURRENT_TIMESTAMP() as checked_at
-FROM silver_crypto_clean
+FROM SILVER.silver_crypto_clean
 WHERE is_current = TRUE
 GROUP BY DATE(updated_at);
 
@@ -279,12 +293,36 @@ SELECT
     END as success_rate_pct,
     error_message,
     created_at
-FROM pipeline_metadata
+FROM PUBLIC.pipeline_metadata
 ORDER BY run_date DESC;
+
+-- ============================================================================
+-- GOLD LAYER VIEWS
+-- ============================================================================
+
+USE SCHEMA GOLD;
+
+-- View: Market Summary by Category
+CREATE OR REPLACE VIEW v_market_summary AS
+SELECT 
+    metric_date,
+    market_cap_category,
+    num_coins,
+    total_market_cap,
+    avg_market_cap,
+    total_volume,
+    avg_price_change_24h,
+    num_gainers,
+    num_losers,
+    category_dominance_pct
+FROM GOLD.gold_crypto_metrics
+ORDER BY metric_date DESC, total_market_cap DESC;
 
 -- ============================================================================
 -- ANALYTICAL FUNCTIONS
 -- ============================================================================
+
+USE SCHEMA PUBLIC;
 
 -- Function: Calculate Price Momentum
 CREATE OR REPLACE FUNCTION calculate_momentum(
@@ -309,12 +347,14 @@ $$;
 -- ============================================================================
 
 -- Add clustering keys for better performance
-ALTER TABLE silver_crypto_clean CLUSTER BY (coin_id, valid_from);
-ALTER TABLE gold_crypto_metrics CLUSTER BY (metric_date, market_cap_category);
+ALTER TABLE SILVER.silver_crypto_clean CLUSTER BY (coin_id, valid_from);
+ALTER TABLE GOLD.gold_crypto_metrics CLUSTER BY (metric_date, market_cap_category);
 
 -- ============================================================================
 -- INCREMENTAL REFRESH PROCEDURE
 -- ============================================================================
+
+USE SCHEMA SILVER;
 
 CREATE OR REPLACE PROCEDURE sp_refresh_daily_summary()
 RETURNS STRING
@@ -323,11 +363,11 @@ AS
 $$
 BEGIN
     -- Delete today's data
-    DELETE FROM daily_market_summary 
+    DELETE FROM SILVER.daily_market_summary 
     WHERE summary_date = CURRENT_DATE();
     
     -- Insert fresh data
-    INSERT INTO daily_market_summary
+    INSERT INTO SILVER.daily_market_summary
     SELECT 
         DATE(updated_at) as summary_date,
         market_cap_category,
@@ -340,7 +380,7 @@ BEGIN
         COUNT(CASE WHEN is_price_anomaly THEN 1 END) as num_anomalies,
         COUNT(CASE WHEN is_volume_spike THEN 1 END) as num_volume_spikes,
         CURRENT_TIMESTAMP() as created_at
-    FROM silver_crypto_clean
+    FROM SILVER.silver_crypto_clean
     WHERE is_current = TRUE
         AND DATE(updated_at) = CURRENT_DATE()
     GROUP BY DATE(updated_at), market_cap_category;
@@ -364,7 +404,7 @@ SELECT
     price_change_percentage_24h,
     volume_to_market_cap_ratio,
     distance_from_ath_pct
-FROM v_current_market_state
+FROM SILVER.v_current_market_state
 LIMIT 10;
 */
 
@@ -378,7 +418,7 @@ SELECT
     is_price_anomaly,
     is_volume_spike,
     updated_at
-FROM v_current_market_state
+FROM SILVER.v_current_market_state
 WHERE is_price_anomaly = TRUE OR is_volume_spike = TRUE
 ORDER BY ABS(price_change_percentage_24h) DESC;
 */
@@ -391,7 +431,7 @@ SELECT
     total_market_cap,
     avg_price_change_24h,
     avg_volatility
-FROM gold_crypto_metrics
+FROM GOLD.gold_crypto_metrics
 WHERE metric_date = CURRENT_DATE()
 ORDER BY total_market_cap DESC;
 */
@@ -399,6 +439,6 @@ ORDER BY total_market_cap DESC;
 -- Query 4: Pipeline health check
 /*
 SELECT *
-FROM v_pipeline_execution_history
+FROM SILVER.v_pipeline_execution_history
 LIMIT 10;
 */
