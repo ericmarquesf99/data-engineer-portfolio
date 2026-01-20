@@ -55,14 +55,69 @@ logger.log_event("transformation_notebook_started", {"run_id": run_id})
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Recuperar Dados do Notebook de Extração
+# MAGIC ## Recuperar Dados da Tabela Bronze no Snowflake
 
 # COMMAND ----------
 
-# Recuperar DataFrame do notebook anterior
-df_bronze = spark.table("crypto_data_raw")
+# Recuperar credenciais Snowflake do Azure Key Vault
+try:
+    snowflake_config = get_snowflake_credentials_from_keyvault("kv-crypto-pipeline")
+    logger.log_event("snowflake_credentials_loaded", {"vault": "kv-crypto-pipeline"})
+    print("✅ Credenciais Snowflake recuperadas do Key Vault")
+except Exception as e:
+    logger.log_event("keyvault_error", {"error": str(e)}, level="ERROR")
+    print(f"❌ Erro ao recuperar credenciais: {e}")
+    raise
 
-print(f"✅ Dados recuperados: {df_bronze.count()} registros")
+# COMMAND ----------
+
+import snowflake.connector
+import json
+
+# Conectar no Snowflake
+conn = snowflake.connector.connect(
+    account=snowflake_config['account'],
+    user=snowflake_config['user'],
+    password=snowflake_config['password'],
+    warehouse=snowflake_config['warehouse'],
+    database=snowflake_config['database'],
+    schema='BRONZE'
+)
+
+cur = conn.cursor()
+
+# Buscar dados da tabela BRONZE_CRYPTO_RAW
+logger.log_event("reading_bronze_table", {"table": "BRONZE.BRONZE_CRYPTO_RAW"})
+print("📊 Lendo dados da tabela BRONZE.BRONZE_CRYPTO_RAW...")
+
+cur.execute("""
+    SELECT 
+        id,
+        payload,
+        extracted_at,
+        run_id,
+        source_system,
+        created_at
+    FROM BRONZE.BRONZE_CRYPTO_RAW
+    WHERE processed = FALSE
+    ORDER BY created_at DESC
+""")
+
+# Converter resultados em lista de dicts
+bronze_data = []
+for row in cur.fetchall():
+    payload_json = json.loads(row[1]) if isinstance(row[1], str) else row[1]
+    bronze_data.append(payload_json)
+
+cur.close()
+conn.close()
+
+print(f"✅ {len(bronze_data)} registros recuperados da Bronze")
+
+# Converter para Spark DataFrame
+df_bronze_pandas = pd.json_normalize(bronze_data)
+df_bronze = spark.createDataFrame(df_bronze_pandas)
+
 print(f"\n📊 Colunas disponíveis:")
 df_bronze.printSchema()
 
