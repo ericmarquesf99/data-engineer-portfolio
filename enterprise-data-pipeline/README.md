@@ -5,6 +5,8 @@
 ![Databricks](https://img.shields.io/badge/Databricks-Community-red.svg)
 ![Snowflake](https://img.shields.io/badge/Snowflake-Cloud_DW-blue.svg)
 ![Azure](https://img.shields.io/badge/Azure-Key_Vault-blue.svg)
+![Security](https://img.shields.io/badge/Security-Enterprise_Grade-green.svg)
+![License](https://img.shields.io/badge/License-MIT-yellow.svg)
 
 ## 📋 Overview
 
@@ -156,13 +158,43 @@ az role assignment create \
   --scope /subscriptions/<sub-id>/resourceGroups/rg-data-engineer/providers/Microsoft.KeyVault/vaults/kv-crypto-pipeline
 ```
 
-#### 3.4 Add Secrets
+#### 3.4 Add Secrets to Key Vault
 
+**Snowflake credentials:**
 ```bash
-az keyvault secret set --vault-name kv-crypto-pipeline --name snowflake-account --value "eyzzsxw-ir02741"
+az keyvault secret set --vault-name kv-crypto-pipeline --name snowflake-account --value "your-account"
 az keyvault secret set --vault-name kv-crypto-pipeline --name snowflake-user --value "your-username"
 az keyvault secret set --vault-name kv-crypto-pipeline --name snowflake-password --value "your-password"
 ```
+
+**Service Principal credentials:**
+```bash
+az keyvault secret set --vault-name kv-crypto-pipeline --name azure-tenant-id --value "<your-tenant-id>"
+az keyvault secret set --vault-name kv-crypto-pipeline --name azure-client-id --value "<your-client-id>"
+az keyvault secret set --vault-name kv-crypto-pipeline --name azure-client-secret --value "<your-client-secret>"
+```
+
+#### 3.5 Configure Databricks Secrets (Recommended)
+
+**Create secret scope and add Service Principal credentials:**
+
+```bash
+# Install Databricks CLI
+pip install databricks-cli
+
+# Configure
+databricks configure --token
+
+# Create secret scope
+databricks secrets create-scope --scope azure-keyvault
+
+# Add secrets (interactive prompts)
+databricks secrets put --scope azure-keyvault --key azure-tenant-id
+databricks secrets put --scope azure-keyvault --key azure-client-id
+databricks secrets put --scope azure-keyvault --key azure-client-secret
+```
+
+✅ **With Databricks Secrets configured, notebooks automatically retrieve credentials securely - no hardcoded values!**
 
 ### 4. Snowflake Setup
 
@@ -173,10 +205,20 @@ az keyvault secret set --vault-name kv-crypto-pipeline --name snowflake-password
 
 ### 5. Deploy to Databricks
 
-1. Upload notebooks from `notebooks/` folder
-2. Upload modules from `src/` folder
-3. Update credentials in notebooks (AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET)
-4. Execute in order: 00_test_keyvault → 01_extraction → 02_transformation → 03_loading
+1. **Upload notebooks** from `notebooks/` folder to Databricks Workspace
+2. **Upload modules** from `src/` folder to `/Workspace/Users/<your-email>/data-engineer-portfolio/enterprise-data-pipeline/src`
+3. **Configure Databricks Secrets** (step 3.5 above) - **Recommended for production**
+4. **Execute notebooks in order:**
+   - `00_setup_credentials.py` (optional - test credential setup)
+   - `00_test_keyvault.py` (test Key Vault connection)
+   - `01_extraction.py` (extract data from API → Snowflake Bronze)
+   - `02_transformation.py` (transform Bronze → Silver → Gold)
+   - `03_loading.py` (validation and metadata)
+
+💡 **Security Notes:**
+- ✅ **Best practice:** Use Databricks Secrets (step 3.5) - notebooks will automatically retrieve credentials
+- ⚠️ **Fallback:** If Databricks Secrets not configured, notebooks will fall back to Azure Key Vault
+- 🔐 **No hardcoded secrets** in any notebook!
 
 ---
 

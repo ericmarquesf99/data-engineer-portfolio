@@ -29,18 +29,46 @@ from utils.config_loader import load_config, get_snowflake_credentials_from_keyv
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Configurar Azure Service Principal
+# MAGIC ## Configure Azure Service Principal
+# MAGIC 
+# MAGIC Credentials retrieved from **Databricks Secrets** (recommended) or **Azure Key Vault**.
+# MAGIC 
+# MAGIC ### Setup Databricks Secrets (one-time):
+# MAGIC ```bash
+# MAGIC # Create secret scope
+# MAGIC databricks secrets create-scope --scope azure-keyvault
+# MAGIC 
+# MAGIC # Add secrets
+# MAGIC databricks secrets put --scope azure-keyvault --key azure-tenant-id
+# MAGIC databricks secrets put --scope azure-keyvault --key azure-client-id
+# MAGIC databricks secrets put --scope azure-keyvault --key azure-client-secret
+# MAGIC ```
 
 # COMMAND ----------
 
 import os
 
-# Configurar credenciais do Service Principal para Azure Key Vault
-os.environ['AZURE_TENANT_ID'] = "518d08e5-ea11-4f47-bab2-dbaa4ebbbb76"
-os.environ['AZURE_CLIENT_ID'] = "6ef62d52-f175-4c59-b4fc-5b7c59e5384c"
-os.environ['AZURE_CLIENT_SECRET'] = "9e951b28-962c-4818-bfe7-396b5cb156c0"
-
-print("🔐 Service Principal configurado para Azure Key Vault")
+# Retrieve Service Principal credentials from Databricks Secrets
+try:
+    os.environ['AZURE_TENANT_ID'] = dbutils.secrets.get(scope="azure-keyvault", key="azure-tenant-id")
+    os.environ['AZURE_CLIENT_ID'] = dbutils.secrets.get(scope="azure-keyvault", key="azure-client-id")
+    os.environ['AZURE_CLIENT_SECRET'] = dbutils.secrets.get(scope="azure-keyvault", key="azure-client-secret")
+    print("✅ Service Principal credentials loaded from Databricks Secrets")
+except Exception as e:
+    print(f"⚠️  Databricks Secrets not configured: {e}")
+    print("📋 Falling back to Azure Key Vault...")
+    
+    # Fallback: Retrieve from Azure Key Vault (requires bootstrap credentials)
+    from utils.config_loader import setup_azure_credentials_from_keyvault
+    
+    # Bootstrap with minimal hardcoded credentials (only for first Key Vault access)
+    os.environ['AZURE_TENANT_ID'] = "518d08e5-ea11-4f47-bab2-dbaa4ebbbb76"
+    os.environ['AZURE_CLIENT_ID'] = "6ef62d52-f175-4c59-b4fc-5b7c59e5384c"
+    os.environ['AZURE_CLIENT_SECRET'] = "9e951b28-962c-4818-bfe7-396b5cb156c0"
+    
+    # Replace with values from Key Vault
+    setup_azure_credentials_from_keyvault("kv-crypto-pipeline")
+    print("✅ Service Principal credentials loaded from Azure Key Vault")
 
 # COMMAND ----------
 

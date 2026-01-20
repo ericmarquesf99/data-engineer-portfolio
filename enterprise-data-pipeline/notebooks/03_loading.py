@@ -27,18 +27,33 @@ from utils.config_loader import load_config, get_snowflake_credentials_from_keyv
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Configurar Azure Service Principal
+# MAGIC ## Configure Azure Service Principal
+# MAGIC 
+# MAGIC Credentials retrieved from **Databricks Secrets** (recommended) or **Azure Key Vault**.
 
 # COMMAND ----------
 
 import os
 
-# Configurar credenciais do Service Principal para Azure Key Vault
-os.environ['AZURE_TENANT_ID'] = "518d08e5-ea11-4f47-bab2-dbaa4ebbbb76"
-os.environ['AZURE_CLIENT_ID'] = "6ef62d52-f175-4c59-b4fc-5b7c59e5384c"
-os.environ['AZURE_CLIENT_SECRET'] = "9e951b28-962c-4818-bfe7-396b5cb156c0"
-
-print("🔐 Service Principal configurado para Azure Key Vault")
+# Retrieve Service Principal credentials from Databricks Secrets
+try:
+    os.environ['AZURE_TENANT_ID'] = dbutils.secrets.get(scope="azure-keyvault", key="azure-tenant-id")
+    os.environ['AZURE_CLIENT_ID'] = dbutils.secrets.get(scope="azure-keyvault", key="azure-client-id")
+    os.environ['AZURE_CLIENT_SECRET'] = dbutils.secrets.get(scope="azure-keyvault", key="azure-client-secret")
+    print("✅ Service Principal credentials loaded from Databricks Secrets")
+except Exception as e:
+    print(f"⚠️  Databricks Secrets not configured: {e}")
+    print("📋 Falling back to Azure Key Vault...")
+    
+    # Fallback: Retrieve from Azure Key Vault
+    from utils.config_loader import setup_azure_credentials_from_keyvault
+    
+    os.environ['AZURE_TENANT_ID'] = "518d08e5-ea11-4f47-bab2-dbaa4ebbbb76"
+    os.environ['AZURE_CLIENT_ID'] = "6ef62d52-f175-4c59-b4fc-5b7c59e5384c"
+    os.environ['AZURE_CLIENT_SECRET'] = "9e951b28-962c-4818-bfe7-396b5cb156c0"
+    
+    setup_azure_credentials_from_keyvault("kv-crypto-pipeline")
+    print("✅ Service Principal credentials loaded from Azure Key Vault")
 
 # COMMAND ----------
 

@@ -180,6 +180,77 @@ def get_databricks_secrets(scope: str, keys: list) -> Dict[str, str]:
         raise ConfigurationError("dbutils not available - not in Databricks environment")
 
 
+def get_azure_service_principal_from_keyvault(vault_name: str) -> Dict[str, str]:
+    """
+    Get Azure Service Principal credentials from Azure Key Vault
+    
+    This function uses a bootstrap approach: it retrieves the Service Principal
+    credentials from Key Vault using hardcoded credentials initially, then
+    sets them as environment variables for subsequent Key Vault access.
+    
+    Args:
+        vault_name: Name of the Azure Key Vault (without .vault.azure.net)
+        
+    Returns:
+        Dictionary with Service Principal credentials:
+        {
+            'tenant_id': str,
+            'client_id': str,
+            'client_secret': str
+        }
+        
+    Note:
+        This creates a circular dependency, so you must have initial credentials
+        set via environment variables or use hardcoded values for first access.
+    """
+    secret_keys = [
+        'azure-tenant-id',
+        'azure-client-id',
+        'azure-client-secret'
+    ]
+    
+    secrets = get_azure_keyvault_secrets(vault_name, secret_keys)
+    
+    return {
+        'tenant_id': secrets['azure-tenant-id'],
+        'client_id': secrets['azure-client-id'],
+        'client_secret': secrets['azure-client-secret']
+    }
+
+
+def setup_azure_credentials_from_keyvault(vault_name: str) -> None:
+    """
+    Setup Azure Service Principal credentials from Key Vault as environment variables
+    
+    This function retrieves Service Principal credentials from Key Vault and
+    sets them as environment variables (AZURE_TENANT_ID, AZURE_CLIENT_ID, 
+    AZURE_CLIENT_SECRET) for subsequent Key Vault access.
+    
+    Args:
+        vault_name: Name of the Azure Key Vault (without .vault.azure.net)
+        
+    Note:
+        Requires initial Service Principal credentials to be set via environment
+        variables or hardcoded for the bootstrap process.
+        
+    Example:
+        # Set initial credentials (one-time setup)
+        os.environ['AZURE_TENANT_ID'] = 'your-tenant-id'
+        os.environ['AZURE_CLIENT_ID'] = 'your-client-id'
+        os.environ['AZURE_CLIENT_SECRET'] = 'your-client-secret'
+        
+        # Then setup from Key Vault for all subsequent calls
+        setup_azure_credentials_from_keyvault('kv-crypto-pipeline')
+    """
+    credentials = get_azure_service_principal_from_keyvault(vault_name)
+    
+    os.environ['AZURE_TENANT_ID'] = credentials['tenant_id']
+    os.environ['AZURE_CLIENT_ID'] = credentials['client_id']
+    os.environ['AZURE_CLIENT_SECRET'] = credentials['client_secret']
+    
+    print(f"✅ Azure Service Principal credentials loaded from Key Vault: {vault_name}")
+
+
 def get_snowflake_credentials_from_keyvault(
     vault_name: str,
     warehouse: str = 'SNOWFLAKE_LEARNING_WH',
