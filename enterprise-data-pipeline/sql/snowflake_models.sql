@@ -8,6 +8,128 @@ USE DATABASE CRYPTO_DB;
 USE SCHEMA PUBLIC;
 
 -- ============================================================================
+-- BASE TABLES - SILVER LAYER
+-- ============================================================================
+
+-- Silver Table: Clean and validated crypto data
+CREATE TABLE IF NOT EXISTS silver_crypto_clean (
+    coin_id VARCHAR(100) NOT NULL,
+    symbol VARCHAR(50),
+    name VARCHAR(200),
+    current_price FLOAT,
+    market_cap FLOAT,
+    market_cap_rank INTEGER,
+    market_cap_category VARCHAR(20),
+    fully_diluted_valuation FLOAT,
+    total_volume FLOAT,
+    high_24h FLOAT,
+    low_24h FLOAT,
+    price_change_24h FLOAT,
+    price_change_percentage_24h FLOAT,
+    market_cap_change_24h FLOAT,
+    market_cap_change_percentage_24h FLOAT,
+    circulating_supply FLOAT,
+    total_supply FLOAT,
+    max_supply FLOAT,
+    ath FLOAT,
+    ath_change_percentage FLOAT,
+    ath_date TIMESTAMP_NTZ,
+    atl FLOAT,
+    atl_change_percentage FLOAT,
+    atl_date TIMESTAMP_NTZ,
+    last_updated TIMESTAMP_NTZ,
+    
+    -- Calculated Fields
+    price_volatility_24h FLOAT,
+    volume_to_market_cap_ratio FLOAT,
+    distance_from_ath_pct FLOAT,
+    distance_from_atl_pct FLOAT,
+    
+    -- Quality Flags
+    is_price_anomaly BOOLEAN DEFAULT FALSE,
+    is_volume_spike BOOLEAN DEFAULT FALSE,
+    
+    -- SCD Type 2 Fields
+    valid_from TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP(),
+    valid_to TIMESTAMP_NTZ,
+    is_current BOOLEAN DEFAULT TRUE,
+    
+    -- Audit Fields
+    updated_at TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP(),
+    run_id VARCHAR(100),
+    
+    PRIMARY KEY (coin_id, valid_from)
+);
+
+-- Add clustering for performance
+ALTER TABLE silver_crypto_clean CLUSTER BY (coin_id, valid_from);
+
+-- ============================================================================
+-- BASE TABLES - GOLD LAYER
+-- ============================================================================
+
+-- Gold Table: Aggregated metrics by category
+CREATE TABLE IF NOT EXISTS gold_crypto_metrics (
+    metric_date DATE NOT NULL,
+    market_cap_category VARCHAR(20) NOT NULL,
+    num_coins INTEGER,
+    total_market_cap FLOAT,
+    avg_market_cap FLOAT,
+    total_volume FLOAT,
+    avg_volume FLOAT,
+    avg_price FLOAT,
+    avg_price_change_24h FLOAT,
+    avg_volatility FLOAT,
+    num_gainers INTEGER,
+    num_losers INTEGER,
+    num_anomalies INTEGER,
+    num_volume_spikes INTEGER,
+    category_dominance_pct FLOAT,
+    
+    -- Top performers
+    top_gainer_symbol VARCHAR(50),
+    top_gainer_change_pct FLOAT,
+    top_loser_symbol VARCHAR(50),
+    top_loser_change_pct FLOAT,
+    
+    -- Audit
+    created_at TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP(),
+    updated_at TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP(),
+    run_id VARCHAR(100),
+    
+    PRIMARY KEY (metric_date, market_cap_category)
+);
+
+-- Add clustering for performance
+ALTER TABLE gold_crypto_metrics CLUSTER BY (metric_date, market_cap_category);
+
+-- ============================================================================
+-- METADATA TABLES
+-- ============================================================================
+
+-- Pipeline execution metadata
+CREATE TABLE IF NOT EXISTS pipeline_metadata (
+    run_id VARCHAR(100) PRIMARY KEY,
+    pipeline_name VARCHAR(100) NOT NULL,
+    run_date TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP(),
+    status VARCHAR(20),
+    records_extracted INTEGER,
+    records_processed INTEGER,
+    records_loaded INTEGER,
+    records_failed INTEGER,
+    execution_time_seconds FLOAT,
+    error_message VARCHAR(5000),
+    
+    -- Configuration
+    config_snapshot VARIANT,
+    
+    -- Timestamps
+    started_at TIMESTAMP_NTZ,
+    completed_at TIMESTAMP_NTZ,
+    created_at TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
+);
+
+-- ============================================================================
 -- ANALYTICS VIEWS
 -- ============================================================================
 
