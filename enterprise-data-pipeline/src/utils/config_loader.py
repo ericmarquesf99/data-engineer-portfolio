@@ -180,12 +180,20 @@ def get_databricks_secrets(scope: str, keys: list) -> Dict[str, str]:
         raise ConfigurationError("dbutils not available - not in Databricks environment")
 
 
-def get_snowflake_credentials_from_keyvault(vault_name: str) -> Dict[str, str]:
+def get_snowflake_credentials_from_keyvault(
+    vault_name: str,
+    warehouse: str = 'SNOWFLAKE_LEARNING_WH',
+    database: str = 'CRYPTO_DB',
+    schema: str = 'PUBLIC'
+) -> Dict[str, str]:
     """
     Convenience function to get Snowflake credentials from Azure Key Vault
     
     Args:
         vault_name: Name of the Azure Key Vault (without .vault.azure.net)
+        warehouse: Snowflake warehouse name (default: SNOWFLAKE_LEARNING_WH)
+        database: Snowflake database name (default: CRYPTO_DB)
+        schema: Snowflake schema name (default: PUBLIC)
         
     Returns:
         Dictionary with Snowflake configuration:
@@ -199,21 +207,17 @@ def get_snowflake_credentials_from_keyvault(vault_name: str) -> Dict[str, str]:
         }
         
     Note:
-        Expects the following secrets in Azure Key Vault:
+        Retrieves only credentials from Azure Key Vault:
         - snowflake-account
         - snowflake-user
         - snowflake-password
-        - snowflake-warehouse
-        - snowflake-database
-        - snowflake-schema
+        
+        warehouse, database and schema are passed as parameters
     """
     secret_keys = [
         'snowflake-account',
         'snowflake-user',
-        'snowflake-password',
-        'snowflake-warehouse',
-        'snowflake-database',
-        'snowflake-schema'
+        'snowflake-password'
     ]
     
     secrets = get_azure_keyvault_secrets(vault_name, secret_keys)
@@ -222,9 +226,9 @@ def get_snowflake_credentials_from_keyvault(vault_name: str) -> Dict[str, str]:
         'account': secrets['snowflake-account'],
         'user': secrets['snowflake-user'],
         'password': secrets['snowflake-password'],
-        'warehouse': secrets['snowflake-warehouse'],
-        'database': secrets['snowflake-database'],
-        'schema': secrets['snowflake-schema']
+        'warehouse': warehouse,
+        'database': database,
+        'schema': schema
     }
 
 
