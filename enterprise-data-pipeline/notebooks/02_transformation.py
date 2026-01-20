@@ -174,6 +174,43 @@ try:
     print(f"\n📊 Amostra dos dados:")
     df_silver.select("id", "symbol", "current_price", "market_cap", "processed_at").limit(5).display()
     
+    # Carregar Silver para Snowflake
+    logger.log_event("loading_silver_to_snowflake", {"records": silver_count})
+    
+    # Usar schema SILVER
+    cur.execute("USE SCHEMA SILVER")
+    
+    # Coletar dados do Spark DataFrame
+    silver_data = df_silver.collect()
+    
+    inserted_silver = 0
+    for row in silver_data:
+        # Inserir cada registro na tabela silver_crypto_clean
+        cur.execute("""
+            INSERT INTO silver_crypto_clean (
+                coin_id, symbol, name, current_price, market_cap, 
+                market_cap_rank, total_volume, price_change_percentage_24h,
+                updated_at, run_id, is_current
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE)
+        """, (
+            row['id'],
+            row['symbol'] if 'symbol' in row else None,
+            row['name'] if 'name' in row else None,
+            float(row['current_price']) if 'current_price' in row and row['current_price'] else None,
+            float(row['market_cap']) if 'market_cap' in row and row['market_cap'] else None,
+            int(row['market_cap_rank']) if 'market_cap_rank' in row and row['market_cap_rank'] else None,
+            float(row['total_volume']) if 'total_volume' in row and row['total_volume'] else None,
+            float(row['price_change_percentage_24h']) if 'price_change_percentage_24h' in row and row['price_change_percentage_24h'] else None,
+            row['processed_at'],
+            run_id
+        ))
+        inserted_silver += 1
+    
+    conn.commit()
+    
+    logger.log_event("silver_loaded_to_snowflake", {"records": inserted_silver})
+    print(f"❄️  Snowflake Silver: {inserted_silver} registros inseridos")
+    
 except Exception as e:
     logger.log_event("transformation_error", {"error": str(e)}, level="ERROR")
     raise
@@ -186,19 +223,28 @@ except Exception as e:
 # COMMAND ----------
 
 try:
-    # Criar agregações por categoria (se existir)
-    if "market_cap_rank" in df_silver.columns:
-        df_gold = df_silver \
-            .groupBy(F.col("symbol")) \
-            .agg(
-                F.max("current_price").alias("max_price"),
-                F.min("current_price").alias("min_price"),
-                F.avg("current_price").alias("avg_price"),
-                F.max("market_cap").alias("max_market_cap"),
-                F.count("*").alias("record_count")
-            )
-    else:
-        df_gold = df_silver
+    # Criar agregações por categoria de market cap
+    logger.log_event("creating_gold_aggregations", {})
+    
+    # Adicionar categorização de market cap
+    df_categorized = df_silver.withColumn(
+        "market_cap_category",
+        F.when(F.col("market_cap") >= 10000000000, "LARGE_CAP")
+         .when(F.col("market_cap") >= 1000000000, "MID_CAP")
+         .otherwise("SMALL_CAP")
+    )
+    
+    # Agregar por categoria
+    df_gold = df_categorized \
+        .groupBy("market_cap_category") \
+        .agg(
+            F.count("*").alias("num_coins"),
+            F.sum("market_cap").alias("total_market_cap"),
+            F.avg("market_cap").alias("avg_market_cap"),
+            F.sum("total_volume").alias("total_volume"),
+            F.avg("current_price").alias("avg_price"),
+            F.avg("price_change_percentage_24h").alias("avg_price_change_24h")
+        )
     
     gold_count = df_gold.count()
     
@@ -206,12 +252,48 @@ try:
     df_gold.cache()
     
     logger.log_event("gold_aggregation_completed", {
-        "records": gold_count
+        "categories": gold_count
     })
     
-    print(f"✅ Gold Layer: {gold_count} registros agregados")
+    print(f"✅ Gold Layer: {gold_count} categorias agregadas")
     print(f"\n📊 Amostra das agregações:")
-    df_gold.limit(5).display()
+    df_gold.display()
+    
+    # Carregar Gold para Snowflake
+    logger.log_event("loading_gold_to_snowflake", {"categories": gold_count})
+    
+    # Usar schema GOLD
+    cur.execute("USE SCHEMA GOLD")
+    
+    # Coletar dados agregados
+    gold_data = df_gold.collect()
+    
+    inserted_gold = 0
+    for row in gold_data:
+        cur.execute("""
+            INSERT INTO gold_crypto_metrics (
+                metric_date, market_cap_category, num_coins, total_market_cap,
+                avg_market_cap, total_volume, avg_price, avg_price_change_24h,
+                created_at, run_id
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (
+            datetime.now().date(),
+            row['market_cap_category'],
+            int(row['num_coins']),
+            float(row['total_market_cap']) if row['total_market_cap'] else None,
+            float(row['avg_market_cap']) if row['avg_market_cap'] else None,
+            float(row['total_volume']) if row['total_volume'] else None,
+            float(row['avg_price']) if row['avg_price'] else None,
+            float(row['avg_price_change_24h']) if row['avg_price_change_24h'] else None,
+            datetime.now(),
+            run_id
+        ))
+        inserted_gold += 1
+    
+    conn.commit()
+    
+    logger.log_event("gold_loaded_to_snowflake", {"categories": inserted_gold})
+    print(f"❄️  Snowflake Gold: {inserted_gold} categorias inseridas")
     
 except Exception as e:
     logger.log_event("gold_aggregation_error", {"error": str(e)}, level="ERROR")
@@ -220,11 +302,17 @@ except Exception as e:
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Salvar DataFrames em Views Temporárias
+# MAGIC ## Finalizar
 
 # COMMAND ----------
 
-# Criar views temporárias para o notebook de loading acessar
+# Fechar conexão Snowflake
+cur.close()
+conn.close()
+
+print("✅ Conexão Snowflake fechada")
+
+# Criar views temporárias (opcional, para compatibilidade)
 df_silver.createOrReplaceTempView("crypto_data_silver")
 df_gold.createOrReplaceTempView("crypto_data_gold")
 
@@ -233,9 +321,7 @@ logger.log_event("temp_views_created", {
     "gold_view": "crypto_data_gold"
 })
 
-print("✅ Views temporárias criadas:")
-print("   - crypto_data_silver")
-print("   - crypto_data_gold")
+print("✅ Views temporárias criadas (opcional)")
 
 # COMMAND ----------
 
@@ -249,16 +335,16 @@ duration = (end_time - start_time).total_seconds()
 
 result = {
     "status": "success",
-    "silver_records": silver_count,
-    "gold_records": gold_count,
+    "silver_records": inserted_silver,
+    "gold_categories": inserted_gold,
     "duration_seconds": duration
 }
 
 logger.log_event("transformation_completed", result)
 
 print(f"\n✅ Transformação completa!")
-print(f"   Bronze → Silver: {silver_count} registros")
-print(f"   Silver → Gold: {gold_count} agregações")
+print(f"   Bronze → Silver: {inserted_silver} registros")
+print(f"   Silver → Gold: {inserted_gold} categorias")
 print(f"   ⏱️  Duração: {duration:.2f}s")
 
 # COMMAND ----------

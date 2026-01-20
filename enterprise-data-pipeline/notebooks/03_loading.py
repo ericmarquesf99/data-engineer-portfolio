@@ -92,7 +92,7 @@ print("✅ Conexão Snowflake estabelecida")
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Carregar Silver Data
+# MAGIC ## Carregar Silver Data do Snowflake
 
 # COMMAND ----------
 
@@ -101,46 +101,18 @@ start_time = datetime.now()
 try:
     logger.log_event("loading_silver_started", {})
     
-    # Ler DataFrame do notebook de transformação
-    silver_df_spark = spark.table("crypto_data_silver")
+    # Ler dados da tabela SILVER do Snowflake
+    print("📊 Lendo dados da tabela SILVER.silver_crypto_clean...")
     
-    logger.log_event("silver_data_loaded", {"records": silver_df_spark.count()})
-    
-    # Usar schema SILVER
     cur.execute("USE SCHEMA SILVER")
+    cur.execute("SELECT * FROM silver_crypto_clean WHERE is_current = TRUE")
     
-    # Inserir dados na tabela silver_crypto_clean
-    # Converter Spark DataFrame para lista de dicts
-    silver_data = [row.asDict() for row in silver_df_spark.collect()]
+    silver_records = cur.fetchall()
+    record_count = len(silver_records)
     
-    inserted = 0
-    for record in silver_data:
-        # Inserir cada registro
-        cur.execute("""
-            INSERT INTO silver_crypto_clean (
-                coin_id, symbol, name, current_price, market_cap, 
-                market_cap_rank, total_volume, price_change_percentage_24h,
-                updated_at, run_id
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """, (
-            record.get('id'),
-            record.get('symbol'),
-            record.get('name'),
-            record.get('current_price'),
-            record.get('market_cap'),
-            record.get('market_cap_rank'),
-            record.get('total_volume'),
-            record.get('price_change_percentage_24h'),
-            record.get('processed_at'),
-            run_id
-        ))
-        inserted += 1
+    logger.log_event("silver_data_loaded_from_snowflake", {"records": record_count})
     
-    conn.commit()
-    
-    logger.log_event("silver_loaded", {"rows_inserted": inserted})
-    
-    print(f"✅ Silver Data carregada: {inserted} registros inseridos")
+    print(f"✅ {record_count} registros lidos do Snowflake Silver")
     
 except Exception as e:
     logger.log_event("silver_loading_error", {"error": str(e)}, level="ERROR")
@@ -152,38 +124,57 @@ except Exception as e:
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Carregar Gold Data
+# MAGIC ## Criar Agregações Gold e Carregar
 
 # COMMAND ----------
 
 try:
     logger.log_event("loading_gold_started", {})
     
-    # Ler DataFrame Gold
-    gold_df_spark = spark.table("crypto_data_gold")
+    # Agregar dados Silver para Gold (métricas por categoria)
+    cur.execute("USE SCHEMA SILVER")
     
-    logger.log_event("gold_data_loaded", {"records": gold_df_spark.count()})
+    # Criar agregações diretamente no Snowflake
+    cur.execute("""
+        SELECT 
+            CASE 
+                WHEN market_cap >= 10000000000 THEN 'LARGE_CAP'
+                WHEN market_cap >= 1000000000 THEN 'MID_CAP'
+                ELSE 'SMALL_CAP'
+            END as market_cap_category,
+            COUNT(*) as num_coins,
+            SUM(market_cap) as total_market_cap,
+            AVG(market_cap) as avg_market_cap,
+            SUM(total_volume) as total_volume,
+            AVG(price_change_percentage_24h) as avg_price_change_24h
+        FROM silver_crypto_clean
+        WHERE is_current = TRUE
+        GROUP BY market_cap_category
+    """)
     
-    # Usar schema GOLD
+    gold_records = cur.fetchall()
+    
+    logger.log_event("gold_aggregation_completed", {"categories": len(gold_records)})
+    
+    # Inserir na tabela GOLD
     cur.execute("USE SCHEMA GOLD")
     
-    # Inserir dados na tabela gold_crypto_metrics
-    gold_data = [row.asDict() for row in gold_df_spark.collect()]
-    
     inserted = 0
-    for record in gold_data:
+    for record in gold_records:
         cur.execute("""
             INSERT INTO gold_crypto_metrics (
                 metric_date, market_cap_category, num_coins, total_market_cap,
-                avg_market_cap, total_volume, created_at, run_id
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                avg_market_cap, total_volume, avg_price_change_24h, 
+                created_at, run_id
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (
             datetime.now().date(),
-            record.get('market_cap_category'),
-            record.get('count'),
-            record.get('total_market_cap'),
-            record.get('avg_market_cap'),
-            record.get('total_volume'),
+            record[0],  # market_cap_category
+            record[1],  # num_coins
+            record[2],  # total_market_cap
+            record[3],  # avg_market_cap
+            record[4],  # total_volume
+            record[5],  # avg_price_change_24h
             datetime.now(),
             run_id
         ))
@@ -193,7 +184,7 @@ try:
     
     logger.log_event("gold_loaded", {"rows_inserted": inserted})
     
-    print(f"✅ Gold Data carregada: {inserted} registros inseridos")
+    print(f"✅ Gold Data carregada: {inserted} categorias inseridas")
     
 except Exception as e:
     logger.log_event("gold_loading_error", {"error": str(e)}, level="ERROR")
@@ -226,9 +217,9 @@ try:
         run_id,
         'crypto_data_pipeline',
         'success',
-        silver_df_spark.count(),
-        silver_df_spark.count(),
-        inserted,
+        record_count,
+        record_count,
+        record_count + inserted,
         execution_time,
         start_time,
         datetime.now()
