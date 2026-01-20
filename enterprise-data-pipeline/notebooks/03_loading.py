@@ -19,9 +19,8 @@ import json
 from pyspark.sql import SparkSession
 
 # Adicionar src ao path
-sys.path.append("/Workspace/Repos/<username>/enterprise-data-pipeline/src")
+sys.path.append("/Workspace/Users/ericmarques1999@gmail.com/data-engineer-portfolio/enterprise-data-pipeline/src")
 
-from loaders.snowflake_loader import SnowflakeLoader
 from utils.logging_config import StructuredLogger
 from utils.config_loader import load_config, get_snowflake_credentials_from_keyvault
 
@@ -71,31 +70,24 @@ logger.log_event("loading_notebook_started", {
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Inicializar Spark e Snowflake
+# MAGIC ## Inicializar Conexão Snowflake
 
 # COMMAND ----------
 
-spark = SparkSession.builder.getOrCreate()
+import snowflake.connector
 
-# Configurar conexão Snowflake
-snowflake_config = {
-    "snowflake": {
-        "account": snowflake_account,
-        "user": snowflake_user,
-        "password": snowflake_password,
-        "warehouse": snowflake_warehouse,
-        "database": snowflake_database,
-        "schema": snowflake_schema
-    }
-}
+# Conectar no Snowflake
+conn = snowflake.connector.connect(
+    account=snowflake_config['account'],
+    user=snowflake_config['user'],
+    password=snowflake_config['password'],
+    warehouse=snowflake_config['warehouse'],
+    database=snowflake_config['database'],
+    schema='SILVER'
+)
+cur = conn.cursor()
 
-# Alternativa: Se usar arquivo config
-# config = load_config()
-# snowflake_config = config
-
-loader = SnowflakeLoader(snowflake_config)
-
-print("✅ Snowflake Loader inicializado")
+print("✅ Conexão Snowflake estabelecida")
 
 # COMMAND ----------
 
@@ -109,29 +101,52 @@ start_time = datetime.now()
 try:
     logger.log_event("loading_silver_started", {})
     
-    # Ler view temporária do notebook de transformação
-    silver_df_spark = spark.table("silver_crypto_temp")
+    # Ler DataFrame do notebook de transformação
+    silver_df_spark = spark.table("crypto_data_silver")
     
-    # Converter para Pandas para usar snowflake-connector-python
-    silver_df = silver_df_spark.toPandas()
+    logger.log_event("silver_data_loaded", {"records": silver_df_spark.count()})
     
-    logger.log_event("silver_data_converted", {"records": len(silver_df)})
+    # Usar schema SILVER
+    cur.execute("USE SCHEMA SILVER")
     
-    # Carregar para staging e fazer merge
-    loader.connect()
-    loader.setup_database()  # Garante que tabelas existem
+    # Inserir dados na tabela silver_crypto_clean
+    # Converter Spark DataFrame para lista de dicts
+    silver_data = [row.asDict() for row in silver_df_spark.collect()]
     
-    # Staging + Merge
-    loader.load_dataframe_to_stage(silver_df, "silver_crypto_clean_stage")
-    rows_affected = loader.merge_silver_data()
+    inserted = 0
+    for record in silver_data:
+        # Inserir cada registro
+        cur.execute("""
+            INSERT INTO silver_crypto_clean (
+                coin_id, symbol, name, current_price, market_cap, 
+                market_cap_rank, total_volume, price_change_percentage_24h,
+                updated_at, run_id
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (
+            record.get('id'),
+            record.get('symbol'),
+            record.get('name'),
+            record.get('current_price'),
+            record.get('market_cap'),
+            record.get('market_cap_rank'),
+            record.get('total_volume'),
+            record.get('price_change_percentage_24h'),
+            record.get('processed_at'),
+            run_id
+        ))
+        inserted += 1
     
-    logger.log_event("silver_loaded", {"rows_affected": rows_affected})
+    conn.commit()
     
-    print(f"✅ Silver Data carregada: {rows_affected} linhas afetadas")
+    logger.log_event("silver_loaded", {"rows_inserted": inserted})
+    
+    print(f"✅ Silver Data carregada: {inserted} registros inseridos")
     
 except Exception as e:
     logger.log_event("silver_loading_error", {"error": str(e)}, level="ERROR")
-    loader.disconnect()
+    conn.rollback()
+    cur.close()
+    conn.close()
     raise
 
 # COMMAND ----------
@@ -144,23 +159,47 @@ except Exception as e:
 try:
     logger.log_event("loading_gold_started", {})
     
-    # Ler view temporária
-    gold_df_spark = spark.table("gold_crypto_temp")
-    gold_df = gold_df_spark.toPandas()
+    # Ler DataFrame Gold
+    gold_df_spark = spark.table("crypto_data_gold")
     
-    logger.log_event("gold_data_converted", {"records": len(gold_df)})
+    logger.log_event("gold_data_loaded", {"records": gold_df_spark.count()})
     
-    # Staging + Merge
-    loader.load_dataframe_to_stage(gold_df, "gold_crypto_metrics_stage")
-    rows_affected = loader.merge_gold_data()
+    # Usar schema GOLD
+    cur.execute("USE SCHEMA GOLD")
     
-    logger.log_event("gold_loaded", {"rows_affected": rows_affected})
+    # Inserir dados na tabela gold_crypto_metrics
+    gold_data = [row.asDict() for row in gold_df_spark.collect()]
     
-    print(f"✅ Gold Data carregada: {rows_affected} linhas afetadas")
+    inserted = 0
+    for record in gold_data:
+        cur.execute("""
+            INSERT INTO gold_crypto_metrics (
+                metric_date, market_cap_category, num_coins, total_market_cap,
+                avg_market_cap, total_volume, created_at, run_id
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        """, (
+            datetime.now().date(),
+            record.get('market_cap_category'),
+            record.get('count'),
+            record.get('total_market_cap'),
+            record.get('avg_market_cap'),
+            record.get('total_volume'),
+            datetime.now(),
+            run_id
+        ))
+        inserted += 1
+    
+    conn.commit()
+    
+    logger.log_event("gold_loaded", {"rows_inserted": inserted})
+    
+    print(f"✅ Gold Data carregada: {inserted} registros inseridos")
     
 except Exception as e:
     logger.log_event("gold_loading_error", {"error": str(e)}, level="ERROR")
-    loader.disconnect()
+    conn.rollback()
+    cur.close()
+    conn.close()
     raise
 
 # COMMAND ----------
@@ -171,19 +210,33 @@ except Exception as e:
 # COMMAND ----------
 
 try:
+    # Usar schema PUBLIC para metadata
+    cur.execute("USE SCHEMA PUBLIC")
+    
     # Registrar metadados da execução
-    pipeline_metadata = {
-        "run_id": run_id,
-        "pipeline_name": "crypto_data_pipeline",
-        "status": "success",
-        "silver_records": len(silver_df),
-        "gold_records": len(gold_df),
-        "execution_timestamp": datetime.now().isoformat()
-    }
+    execution_time = (datetime.now() - start_time).total_seconds()
     
-    loader.log_pipeline_metrics(pipeline_metadata)
+    cur.execute("""
+        INSERT INTO pipeline_metadata (
+            run_id, pipeline_name, status, records_extracted, 
+            records_processed, records_loaded, execution_time_seconds,
+            started_at, completed_at
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+    """, (
+        run_id,
+        'crypto_data_pipeline',
+        'success',
+        silver_df_spark.count(),
+        silver_df_spark.count(),
+        inserted,
+        execution_time,
+        start_time,
+        datetime.now()
+    ))
     
-    logger.log_event("pipeline_metadata_logged", pipeline_metadata)
+    conn.commit()
+    
+    logger.log_event("pipeline_metadata_logged", {"run_id": run_id})
     
     print("✅ Métricas do pipeline registradas")
     
@@ -197,16 +250,15 @@ except Exception as e:
 
 # COMMAND ----------
 
-loader.disconnect()
+cur.close()
+conn.close()
 
 end_time = datetime.now()
 duration = (end_time - start_time).total_seconds()
 
 result = {
     "status": "success",
-    "loaded_records": len(silver_df) + len(gold_df),
-    "silver_rows": len(silver_df),
-    "gold_rows": len(gold_df),
+    "loaded_records": inserted,
     "duration_seconds": duration
 }
 
