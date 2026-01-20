@@ -31,31 +31,32 @@ from utils.config_loader import load_config, get_snowflake_credentials_from_keyv
 # MAGIC %md
 # MAGIC ## Configure Azure Service Principal
 # MAGIC 
-# MAGIC Credentials retrieved from **Databricks Secrets** (recommended) or **Azure Key Vault**.
+# MAGIC Credentials loaded from `config/credentials.yaml` file.
 
 # COMMAND ----------
 
 import os
+import yaml
 
-# Retrieve Service Principal credentials from Databricks Secrets
+# Load credentials from config file
+config_path = "/Workspace/Users/ericmarques1999@gmail.com/data-engineer-portfolio/enterprise-data-pipeline/config/credentials.yaml"
+
 try:
-    os.environ['AZURE_TENANT_ID'] = dbutils.secrets.get(scope="azure-keyvault", key="azure-tenant-id")
-    os.environ['AZURE_CLIENT_ID'] = dbutils.secrets.get(scope="azure-keyvault", key="azure-client-id")
-    os.environ['AZURE_CLIENT_SECRET'] = dbutils.secrets.get(scope="azure-keyvault", key="azure-client-secret")
-    print("✅ Service Principal credentials loaded from Databricks Secrets")
+    with open(config_path, 'r') as f:
+        credentials = yaml.safe_load(f)
+    
+    os.environ['AZURE_TENANT_ID'] = credentials['azure']['tenant_id']
+    os.environ['AZURE_CLIENT_ID'] = credentials['azure']['client_id']
+    os.environ['AZURE_CLIENT_SECRET'] = credentials['azure']['client_secret']
+    
+    print("✅ Azure Service Principal credentials loaded from config file")
+except FileNotFoundError:
+    print("❌ Error: config/credentials.yaml not found!")
+    print("💡 Copy config/credentials.yaml.example to config/credentials.yaml and fill with your values")
+    raise
 except Exception as e:
-    print(f"⚠️  Databricks Secrets not configured: {e}")
-    print("📋 Falling back to Azure Key Vault...")
-    
-    # Fallback: Retrieve from Azure Key Vault
-    from utils.config_loader import setup_azure_credentials_from_keyvault
-    
-    os.environ['AZURE_TENANT_ID'] = "518d08e5-ea11-4f47-bab2-dbaa4ebbbb76"
-    os.environ['AZURE_CLIENT_ID'] = "6ef62d52-f175-4c59-b4fc-5b7c59e5384c"
-    os.environ['AZURE_CLIENT_SECRET'] = "9e951b28-962c-4818-bfe7-396b5cb156c0"
-    
-    setup_azure_credentials_from_keyvault("kv-crypto-pipeline")
-    print("✅ Service Principal credentials loaded from Azure Key Vault")
+    print(f"❌ Error loading credentials: {e}")
+    raise
 
 # COMMAND ----------
 

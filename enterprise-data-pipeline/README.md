@@ -174,28 +174,6 @@ az keyvault secret set --vault-name kv-crypto-pipeline --name azure-client-id --
 az keyvault secret set --vault-name kv-crypto-pipeline --name azure-client-secret --value "<your-client-secret>"
 ```
 
-#### 3.5 Configure Databricks Secrets (Recommended)
-
-**Create secret scope and add Service Principal credentials:**
-
-```bash
-# Install Databricks CLI
-pip install databricks-cli
-
-# Configure
-databricks configure --token
-
-# Create secret scope
-databricks secrets create-scope --scope azure-keyvault
-
-# Add secrets (interactive prompts)
-databricks secrets put --scope azure-keyvault --key azure-tenant-id
-databricks secrets put --scope azure-keyvault --key azure-client-id
-databricks secrets put --scope azure-keyvault --key azure-client-secret
-```
-
-✅ **With Databricks Secrets configured, notebooks automatically retrieve credentials securely - no hardcoded values!**
-
 ### 4. Snowflake Setup
 
 ```sql
@@ -203,22 +181,42 @@ databricks secrets put --scope azure-keyvault --key azure-client-secret
 -- Execute snowflake_models.sql
 ```
 
-### 5. Deploy to Databricks
+### 5. Configure Credentials
 
-1. **Upload notebooks** from `notebooks/` folder to Databricks Workspace
-2. **Upload modules** from `src/` folder to `/Workspace/Users/<your-email>/data-engineer-portfolio/enterprise-data-pipeline/src`
-3. **Configure Databricks Secrets** (step 3.5 above) - **Recommended for production**
+Copy the example credentials file and fill with your values:
+
+```bash
+cd enterprise-data-pipeline/config
+cp credentials.yaml.example credentials.yaml
+# Edit credentials.yaml with your Azure Service Principal values
+```
+
+**credentials.yaml:**
+```yaml
+azure:
+  tenant_id: "your-tenant-id"
+  client_id: "your-client-id"
+  client_secret: "your-client-secret"
+
+key_vault:
+  name: "kv-crypto-pipeline"
+  url: "https://kv-crypto-pipeline.vault.azure.net/"
+```
+
+⚠️ **Important:** This file is in `.gitignore` and will NOT be committed to Git.
+
+### 6. Deploy to Databricks
+
+1. **Upload config folder** including `credentials.yaml` to `/Workspace/Users/<your-email>/data-engineer-portfolio/enterprise-data-pipeline/config/`
+2. **Upload notebooks** from `notebooks/` folder to Databricks Workspace
+3. **Upload modules** from `src/` folder to `/Workspace/Users/<your-email>/data-engineer-portfolio/enterprise-data-pipeline/src`
 4. **Execute notebooks in order:**
-   - `00_setup_credentials.py` (optional - test credential setup)
    - `00_test_keyvault.py` (test Key Vault connection)
    - `01_extraction.py` (extract data from API → Snowflake Bronze)
    - `02_transformation.py` (transform Bronze → Silver → Gold)
    - `03_loading.py` (validation and metadata)
 
-💡 **Security Notes:**
-- ✅ **Best practice:** Use Databricks Secrets (step 3.5) - notebooks will automatically retrieve credentials
-- ⚠️ **Fallback:** If Databricks Secrets not configured, notebooks will fall back to Azure Key Vault
-- 🔐 **No hardcoded secrets** in any notebook!
+🔐 **Security:** Credentials are stored in `config/credentials.yaml` (not committed to Git)
 
 ---
 
