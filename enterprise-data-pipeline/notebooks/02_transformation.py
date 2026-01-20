@@ -74,7 +74,7 @@ except Exception as e:
 import snowflake.connector
 import json
 
-# Conectar no Snowflake
+# Conectar no Snowflake usando schema BRONZE
 conn = snowflake.connector.connect(
     account=snowflake_config['account'],
     user=snowflake_config['user'],
@@ -83,8 +83,10 @@ conn = snowflake.connector.connect(
     database=snowflake_config['database'],
     schema='BRONZE'
 )
-
 cur = conn.cursor()
+
+# Garantir schema Bronze
+cur.execute("USE SCHEMA BRONZE")
 
 # Buscar dados da tabela BRONZE_CRYPTO_RAW
 logger.log_event("reading_bronze_table", {"table": "BRONZE.BRONZE_CRYPTO_RAW"})
