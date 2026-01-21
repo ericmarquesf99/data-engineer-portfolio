@@ -79,16 +79,11 @@ logger.log_event("extraction_notebook_started", {"run_id": run_id})
 
 # COMMAND ----------
 
-config_path = "/Workspace/Users/ericmarques1999@gmail.com/data-engineer-portfolio/enterprise-data-pipeline/config/credentials.yaml"
-
-# COMMAND ----------
-
-# DBTITLE 1,Untitled
 start_time = datetime.now()
 
 try:
     # Carregar configuração da API (config.yaml)
-    config = load_config(config_path)  # Carrega de config/config.yaml (tem as configs da API)
+    config = load_config()  # Busca automaticamente em config/config.yaml
     
     # Recuperar credenciais Snowflake do Azure Key Vault
     try:
