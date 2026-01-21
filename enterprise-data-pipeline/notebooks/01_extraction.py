@@ -13,6 +13,10 @@
 
 # COMMAND ----------
 
+# MAGIC %pip install azure-identity azure-keyvault-secrets snowflake-connector-python[pandas] pyyaml tenacity requests
+
+# COMMAND ----------
+
 import sys
 import os
 from datetime import datetime
@@ -30,7 +34,7 @@ from utils.config_loader import load_config, get_snowflake_credentials_from_keyv
 
 # MAGIC %md
 # MAGIC ## Configure Azure Service Principal
-# MAGIC 
+# MAGIC
 # MAGIC Credentials loaded from `config/credentials.yaml` file.
 
 # COMMAND ----------
@@ -75,11 +79,13 @@ logger.log_event("extraction_notebook_started", {"run_id": run_id})
 
 # COMMAND ----------
 
+# DBTITLE 1,Untitled
 start_time = datetime.now()
 
 try:
     # Carregar configuração
-    config = load_config()
+    config_path = "/Workspace/Users/ericmarques1999@gmail.com/data-engineer-portfolio/enterprise-data-pipeline/config/credentials.yaml"
+    config = load_config(config_path)
     
     # Recuperar credenciais Snowflake do Azure Key Vault
     try:

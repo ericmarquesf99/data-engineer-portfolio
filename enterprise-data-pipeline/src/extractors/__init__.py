@@ -5,6 +5,6 @@ Extractors Package - API Data Extraction
 CoinGecko API cryptocurrency data extractor with retry logic.
 """
 
-from .coingecko_extractor import CryptoExtractor
+from .coingecko_extractor import APIExtractor
 
-__all__ = ["CryptoExtractor"]
+__all__ = ["APIExtractor"]
