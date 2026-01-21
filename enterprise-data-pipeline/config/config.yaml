@@ -16,3 +16,10 @@ api:
     timeout: 30
     retry_attempts: 3
     retry_delay: 5
+
+# Databricks / Spark Configuration
+databricks:
+  spark:
+    app_name: "CryptoDataPipeline"
+    shuffle_partitions: 200
+    adaptive_enabled: true
