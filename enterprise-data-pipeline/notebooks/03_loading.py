@@ -1,7 +1,7 @@
 # Databricks notebook source
 # MAGIC %md
 # MAGIC # 📤 Loading Notebook - Snowflake Warehouse
-# MAGIC 
+# MAGIC
 # MAGIC **Input:** Silver e Gold DataFrames (temp views)  
 # MAGIC **Destino:** Snowflake (Silver e Gold schemas)  
 # MAGIC **Método:** Staging tables + MERGE (upsert)
@@ -10,6 +10,10 @@
 
 # MAGIC %md
 # MAGIC ## Setup
+
+# COMMAND ----------
+
+# MAGIC %pip install azure-identity azure-keyvault-secrets snowflake-connector-python[pandas] pyyaml tenacity requests
 
 # COMMAND ----------
 
@@ -28,7 +32,7 @@ from utils.config_loader import load_config, get_snowflake_credentials_from_keyv
 
 # MAGIC %md
 # MAGIC ## Configure Azure Service Principal
-# MAGIC 
+# MAGIC
 # MAGIC Credentials loaded from `config/credentials.yaml` file.
 
 # COMMAND ----------
@@ -165,7 +169,7 @@ try:
             AVG(price_change_percentage_24h) as avg_price_change_24h
         FROM silver_crypto_clean
         WHERE is_current = TRUE
-        GROUP BY market_cap_category
+        GROUP BY market_cap
     """)
     
     gold_records = cur.fetchall()

@@ -164,7 +164,7 @@ try:
                 extracted_at_val = rec.get('extracted_at', extraction_metadata['extraction_timestamp'])
                 cur.execute(
                     """
-                    INSERT INTO BRONZE_CRYPTO_RAW(payload, extracted_at, run_id, source_system) 
+                    INSERT INTO CRYPTO_RAW(payload, extracted_at, run_id, source_system) 
                     SELECT parse_json(%s), %s, %s, 'coingecko_api'
                     """,
                     (payload_json, extracted_at_val, run_id)

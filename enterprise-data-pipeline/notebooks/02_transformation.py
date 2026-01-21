@@ -13,6 +13,10 @@
 
 # COMMAND ----------
 
+# MAGIC %pip install azure-identity azure-keyvault-secrets snowflake-connector-python[pandas] pyyaml tenacity requests
+
+# COMMAND ----------
+
 import sys
 from datetime import datetime
 import pandas as pd
@@ -30,7 +34,7 @@ from utils.config_loader import load_config, get_snowflake_credentials_from_keyv
 
 # MAGIC %md
 # MAGIC ## Configure Azure Service Principal
-# MAGIC 
+# MAGIC
 # MAGIC Credentials loaded from `config/credentials.yaml` file.
 
 # COMMAND ----------
@@ -104,9 +108,9 @@ cur = conn.cursor()
 # Garantir schema Bronze
 cur.execute("USE SCHEMA BRONZE")
 
-# Buscar dados da tabela BRONZE_CRYPTO_RAW
-logger.log_event("reading_bronze_table", {"table": "BRONZE.BRONZE_CRYPTO_RAW"})
-print("📊 Reading data from BRONZE.BRONZE_CRYPTO_RAW table...")
+# Buscar dados da tabela CRYPTO_RAW
+logger.log_event("reading_bronze_table", {"table": "BRONZE.CRYPTO_RAW"})
+print("📊 Reading data from BRONZE.CRYPTO_RAW table...")
 
 cur.execute("""
     SELECT 
@@ -116,7 +120,7 @@ cur.execute("""
         run_id,
         source_system,
         created_at
-    FROM BRONZE.BRONZE_CRYPTO_RAW
+    FROM BRONZE.CRYPTO_RAW
     WHERE processed = FALSE
     ORDER BY created_at DESC
 """)
@@ -127,8 +131,8 @@ for row in cur.fetchall():
     payload_json = json.loads(row[1]) if isinstance(row[1], str) else row[1]
     bronze_data.append(payload_json)
 
-cur.close()
-conn.close()
+# cur.close()
+# conn.close()
 
 print(f"✅ {len(bronze_data)} registros recuperados da Bronze")
 
