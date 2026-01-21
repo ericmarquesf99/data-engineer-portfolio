@@ -23,7 +23,7 @@ from datetime import datetime
 import json
 import pandas as pd
 
-# Adicionar src ao path
+# Add src to path
 sys.path.append("/Workspace/Users/ericmarques1999@gmail.com/data-engineer-portfolio/enterprise-data-pipeline/src")
 
 from extractors.coingecko_extractor import APIExtractor
@@ -64,7 +64,7 @@ except Exception as e:
 
 # COMMAND ----------
 
-# Obter parâmetros do notebook pai
+# Get parameters from parent notebook
 dbutils.widgets.text("run_id", "", "Run ID")
 
 run_id = dbutils.widgets.get("run_id")
@@ -82,11 +82,11 @@ logger.log_event("extraction_notebook_started", {"run_id": run_id})
 start_time = datetime.now()
 
 try:
-    # Carregar configuração da API (config.yaml)
+    # Load API configuration (config.yaml)
     config_yaml_path = "/Workspace/Users/ericmarques1999@gmail.com/data-engineer-portfolio/enterprise-data-pipeline/config/config.yaml"
     config = load_config(config_yaml_path)
     
-    # Recuperar credenciais Snowflake do Azure Key Vault
+    # Retrieve Snowflake credentials from Azure Key Vault
     try:
         snowflake_config = get_snowflake_credentials_from_keyvault("kv-crypto-pipeline")
         logger.log_event("snowflake_credentials_loaded", {"vault": "kv-crypto-pipeline"})
@@ -102,7 +102,7 @@ try:
     
     all_data = extractor.extract_multiple_pages(num_pages=3, per_page=100)
     
-    # Adicionar metadados
+    # Add metadata
     extraction_metadata = {
         "extraction_timestamp": datetime.now().isoformat(),
         "run_id": run_id,
@@ -111,13 +111,13 @@ try:
         "snowflake_available": snowflake_config is not None
     }
     
-    # Converter dados para Pandas DataFrame para normalizar tipos
+    # Convert data to Pandas DataFrame to normalize types
     pdf = pd.json_normalize(all_data)
     
-    # Preencher NaN com None para melhor compatibilidade
+    # Fill NaN with None for better compatibility
     pdf = pdf.where(pd.notna(pdf), None)
     
-    # Converter para Spark DataFrame (inferirá schema corretamente)
+    # Convert to Spark DataFrame (will infer schema correctly)
     df = spark.createDataFrame(pdf)
     
     # Salvar como tabela temporária para uso nos notebooks seguintes
@@ -131,19 +131,19 @@ try:
         "duration_seconds": duration
     })
     
-    # Exibir resultado
-    print(f"✅ Extração completa: {len(all_data)} registros")
-    print(f"⏱️  Duração: {duration:.2f}s")
-    print(f"\n📊 DataFrame salvo como: crypto_data_raw")
+    # Display results
+    print(f"✅ Extraction complete: {len(all_data)} records")
+    print(f"⏱️  Duration: {duration:.2f}s")
+    print(f"\n📊 DataFrame saved as: crypto_data_raw")
     
     df.display()
     
-    # Carregar para Snowflake Bronze (raw JSON em VARIANT)
+    # Load to Snowflake Bronze (raw JSON in VARIANT)
     try:
         if snowflake_config is not None:
             import snowflake.connector
             
-            # Conectar no Snowflake usando schema BRONZE
+            # Connect to Snowflake using BRONZE schema
             conn = snowflake.connector.connect(
                 account=snowflake_config['account'],
                 user=snowflake_config['user'],
@@ -154,10 +154,10 @@ try:
             )
             cur = conn.cursor()
             
-            # Garantir schema Bronze
+            # Ensure Bronze schema
             cur.execute("USE SCHEMA BRONZE")
             
-            # Inserir registros na tabela BRONZE_CRYPTO_RAW
+            # Insert records into BRONZE_CRYPTO_RAW table
             inserted = 0
             for rec in all_data:
                 payload_json = json.dumps(rec)
@@ -176,13 +176,13 @@ try:
             conn.close()
             
             logger.log_event("bronze_load_completed", {"inserted": inserted, "schema": "BRONZE", "table": "BRONZE_CRYPTO_RAW"})
-            print(f"\n❄️  Snowflake Bronze: {inserted} registros inseridos em BRONZE.BRONZE_CRYPTO_RAW")
+            print(f"\n❄️  Snowflake Bronze: {inserted} records inserted into BRONZE.BRONZE_CRYPTO_RAW")
         else:
             logger.log_event("bronze_load_skipped", {"reason": "no_snowflake_credentials"})
-            print("\n⚠️  Snowflake Bronze não executado (credenciais não disponíveis)")
+            print("\n⚠️  Snowflake Bronze not executed (credentials unavailable)")
     except Exception as e:
         logger.log_event("bronze_load_error", {"error": str(e)}, level="ERROR")
-        print(f"\n❌ Erro ao carregar Bronze no Snowflake: {e}")
+        print(f"\n❌ Error loading Bronze to Snowflake: {e}")
     
     # Retornar resultado
     result = {

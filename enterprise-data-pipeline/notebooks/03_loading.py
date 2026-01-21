@@ -107,12 +107,12 @@ conn = snowflake.connector.connect(
 )
 cur = conn.cursor()
 
-print("✅ Conexão Snowflake estabelecida")
+print("✅ Snowflake connection established")
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Carregar Silver Data do Snowflake
+# MAGIC ## Load Silver Data from Snowflake")
 
 # COMMAND ----------
 

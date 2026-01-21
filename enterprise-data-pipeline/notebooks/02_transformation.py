@@ -23,7 +23,7 @@ import pandas as pd
 from pyspark.sql import functions as F
 from pyspark.sql.types import DoubleType
 
-# Adicionar src ao path
+# Add src to path
 sys.path.append("/Workspace/Users/ericmarques1999@gmail.com/data-engineer-portfolio/enterprise-data-pipeline/src")
 
 from transformers.spark_processor import SparkProcessor
@@ -64,7 +64,7 @@ except Exception as e:
 
 # COMMAND ----------
 
-# Obter parâmetros
+# Get parameters
 dbutils.widgets.text("run_id", "", "Run ID")
 
 run_id = dbutils.widgets.get("run_id")
@@ -75,18 +75,18 @@ logger.log_event("transformation_notebook_started", {"run_id": run_id})
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Recuperar Dados da Tabela Bronze no Snowflake
+# MAGIC ## Retrieve Data from Bronze Table in Snowflake
 
 # COMMAND ----------
 
-# Recuperar credenciais Snowflake do Azure Key Vault
+# Retrieve Snowflake credentials from Azure Key Vault
 try:
     snowflake_config = get_snowflake_credentials_from_keyvault("kv-crypto-pipeline")
     logger.log_event("snowflake_credentials_loaded", {"vault": "kv-crypto-pipeline"})
-    print("✅ Credenciais Snowflake recuperadas do Key Vault")
+    print("✅ Snowflake credentials retrieved from Key Vault")
 except Exception as e:
     logger.log_event("keyvault_error", {"error": str(e)}, level="ERROR")
-    print(f"❌ Erro ao recuperar credenciais: {e}")
+    print(f"❌ Error retrieving credentials: {e}")
     raise
 
 # COMMAND ----------
@@ -94,7 +94,7 @@ except Exception as e:
 import snowflake.connector
 import json
 
-# Conectar no Snowflake usando schema BRONZE
+# Connect to Snowflake using BRONZE schema
 conn = snowflake.connector.connect(
     account=snowflake_config['account'],
     user=snowflake_config['user'],
@@ -105,10 +105,10 @@ conn = snowflake.connector.connect(
 )
 cur = conn.cursor()
 
-# Garantir schema Bronze
+# Ensure Bronze schema
 cur.execute("USE SCHEMA BRONZE")
 
-# Buscar dados da tabela CRYPTO_RAW
+# Fetch data from CRYPTO_RAW table
 logger.log_event("reading_bronze_table", {"table": "BRONZE.CRYPTO_RAW"})
 print("📊 Reading data from BRONZE.CRYPTO_RAW table...")
 
@@ -125,7 +125,7 @@ cur.execute("""
     ORDER BY created_at DESC
 """)
 
-# Converter resultados em lista de dicts
+# Convert results to list of dicts
 bronze_data = []
 for row in cur.fetchall():
     payload_json = json.loads(row[1]) if isinstance(row[1], str) else row[1]
@@ -134,48 +134,48 @@ for row in cur.fetchall():
 # cur.close()
 # conn.close()
 
-print(f"✅ {len(bronze_data)} registros recuperados da Bronze")
+print(f"✅ {len(bronze_data)} records retrieved from Bronze")
 
-# Converter para Spark DataFrame
+# Convert to Spark DataFrame
 df_bronze_pandas = pd.json_normalize(bronze_data)
 df_bronze = spark.createDataFrame(df_bronze_pandas)
 
-print(f"\n📊 Colunas disponíveis:")
+print(f"\n📊 Available columns:")
 df_bronze.printSchema()
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Limpeza e Transformação
+# MAGIC ## Cleaning and Transformation
 
 # COMMAND ----------
 
 start_time = datetime.now()
 
 try:
-    # Carregar configuração
+    # Load configuration
     config = load_config()
     
-    # Inicializar processador
+    # Initialize processor
     processor = SparkProcessor(config)
     
     logger.log_event("transforming_bronze_to_silver", {
         "input_records": df_bronze.count()
     })
     
-    # Processamento básico de limpeza
+    # Basic cleaning processing
     df_silver = df_bronze \
         .dropDuplicates() \
         .filter(F.col("id").isNotNull()) \
         .filter(F.col("current_price").isNotNull())
     
-    # Adicionar coluna de processamento
+    # Add processing column
     df_silver = df_silver.withColumn(
         "processed_at",
         F.lit(datetime.now().isoformat())
     )
     
-    # Converter colunas numéricas
+    # Convert numeric columns
     numeric_cols = ["current_price", "market_cap", "total_volume", "market_cap_rank"]
     for col in numeric_cols:
         if col in df_silver.columns:
@@ -190,22 +190,22 @@ try:
         "output_records": silver_count
     })
     
-    print(f"✅ Silver Layer: {silver_count} registros processados")
-    print(f"\n📊 Amostra dos dados:")
+    print(f"✅ Silver Layer: {silver_count} records processed")
+    print(f"\n📊 Data sample:")
     df_silver.select("id", "symbol", "current_price", "market_cap", "processed_at").limit(5).display()
     
-    # Carregar Silver para Snowflake
+    # Load Silver to Snowflake
     logger.log_event("loading_silver_to_snowflake", {"records": silver_count})
     
-    # Usar schema SILVER
+    # Use SILVER schema
     cur.execute("USE SCHEMA SILVER")
     
-    # Coletar dados do Spark DataFrame
+    # Collect data from Spark DataFrame
     silver_data = df_silver.collect()
     
     inserted_silver = 0
     for row in silver_data:
-        # Inserir cada registro na tabela silver_crypto_clean
+        # Insert each record into silver_crypto_clean table
         cur.execute("""
             INSERT INTO silver_crypto_clean (
                 coin_id, symbol, name, current_price, market_cap, 
@@ -229,7 +229,7 @@ try:
     conn.commit()
     
     logger.log_event("silver_loaded_to_snowflake", {"records": inserted_silver})
-    print(f"❄️  Snowflake Silver: {inserted_silver} registros inseridos")
+    print(f"❄️  Snowflake Silver: {inserted_silver} records inserted")
     
 except Exception as e:
     logger.log_event("transformation_error", {"error": str(e)}, level="ERROR")
@@ -238,15 +238,15 @@ except Exception as e:
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Criar Gold Layer (Agregações)
+# MAGIC ## Create Gold Layer (Aggregations)
 
 # COMMAND ----------
 
 try:
-    # Criar agregações por categoria de market cap
+    # Create aggregations by market cap category
     logger.log_event("creating_gold_aggregations", {})
     
-    # Adicionar categorização de market cap
+    # Add market cap categorization
     df_categorized = df_silver.withColumn(
         "market_cap_category",
         F.when(F.col("market_cap") >= 10000000000, "LARGE_CAP")
@@ -279,13 +279,13 @@ try:
     print(f"\n📊 Amostra das agregações:")
     df_gold.display()
     
-    # Carregar Gold para Snowflake
+    # Load Gold to Snowflake
     logger.log_event("loading_gold_to_snowflake", {"categories": gold_count})
     
-    # Usar schema GOLD
+    # Use GOLD schema
     cur.execute("USE SCHEMA GOLD")
     
-    # Coletar dados agregados
+    # Collect aggregated data
     gold_data = df_gold.collect()
     
     inserted_gold = 0
@@ -332,7 +332,7 @@ conn.close()
 
 print("✅ Conexão Snowflake fechada")
 
-# Criar views temporárias (opcional, para compatibilidade)
+# Create temporary views (optional, for compatibility)
 df_silver.createOrReplaceTempView("crypto_data_silver")
 df_gold.createOrReplaceTempView("crypto_data_gold")
 
