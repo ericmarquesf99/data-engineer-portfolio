@@ -179,8 +179,8 @@ try:
     
     silver_count = df_silver.count()
     
-    # Cache para próximos processamentos
-    df_silver.cache()
+    # NOTE: Cache disabled - Databricks Community Edition does not support DataFrame caching
+    # df_silver.cache()
     
     logger.log_event("silver_transformation_completed", {
         "output_records": silver_count
@@ -264,8 +264,8 @@ try:
     
     gold_count = df_gold.count()
     
-    # Cache para carga
-    df_gold.cache()
+    # NOTE: Cache disabled - Databricks Community Edition does not support DataFrame caching
+    # df_gold.cache()
     
     logger.log_event("gold_aggregation_completed", {
         "categories": gold_count
