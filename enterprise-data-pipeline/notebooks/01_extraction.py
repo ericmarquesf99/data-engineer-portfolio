@@ -83,7 +83,8 @@ start_time = datetime.now()
 
 try:
     # Carregar configuração da API (config.yaml)
-    config = load_config()  # Busca automaticamente em config/config.yaml
+    config_yaml_path = "/Workspace/Users/ericmarques1999@gmail.com/data-engineer-portfolio/enterprise-data-pipeline/config/config.yaml"
+    config = load_config(config_yaml_path)
     
     # Recuperar credenciais Snowflake do Azure Key Vault
     try:

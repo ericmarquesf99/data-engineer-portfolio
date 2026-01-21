@@ -1,0 +1,18 @@
+# Enterprise Data Pipeline Configuration
+# API settings for CoinGecko
+
+api:
+  coingecko:
+    base_url: "https://api.coingecko.com/api/v3"
+    endpoints:
+      markets: "/coins/markets"
+      trending: "/search/trending"
+    params:
+      vs_currency: "usd"
+      order: "market_cap_desc"
+      per_page: 100
+      page: 1
+    rate_limit_per_minute: 50
+    timeout: 30
+    retry_attempts: 3
+    retry_delay: 5
