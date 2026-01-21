@@ -29,7 +29,7 @@
 
 ---
 
-## 🏗️ Arquitetura
+## 🏗️ Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -47,7 +47,7 @@
                          ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │             🥉 BRONZE LAYER (Snowflake)                         │
-│          BRONZE.BRONZE_CRYPTO_RAW (VARIANT column)              │
+│          BRONZE.CRYPTO_RAW (VARIANT column)              │
 │              Raw JSON, immutable, timestamped                   │
 └────────────────────────┬────────────────────────────────────────┘
                          │
@@ -73,7 +73,7 @@
 
 ### 🔑 Layers (Medallion Architecture)
 
-- **🥉 Bronze**: Raw JSON from API → `BRONZE.BRONZE_CRYPTO_RAW` (VARIANT)
+- **🥉 Bronze**: Raw JSON from API → `BRONZE.CRYPTO_RAW` (VARIANT)
 - **🥈 Silver**: Clean and validated data → `SILVER.silver_crypto_clean` (Type 2 SCD)
 - **🥇 Gold**: Aggregated metrics → `GOLD.gold_crypto_metrics` (KPIs by category)
 
@@ -84,7 +84,7 @@
 ```
 enterprise-data-pipeline/
 ├── 📓 notebooks/                    # Databricks notebooks
-│   ├── 00_test_keyvault.py         # → Azure Key Vault test
+│   ├── 00_setup_dependencies.py    # → Install dependencies
 │   ├── 01_extraction.py            # → API extraction → Snowflake Bronze
 │   ├── 02_transformation.py        # → Bronze → Silver → Gold
 │   └── 03_loading.py               # → Validation and metadata
@@ -367,12 +367,6 @@ tenacity==8.2.3
 
 **Eric M.**  
 Data Engineer Portfolio Project
-
----
-
-## 📄 License
-
-MIT License
 
 ---
 
