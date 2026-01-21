@@ -1,5 +1,5 @@
 # Enterprise Data Pipeline Configuration
-# API settings for CoinGecko
+# Complete configuration file
 
 api:
   coingecko:
@@ -23,3 +23,31 @@ databricks:
     app_name: "CryptoDataPipeline"
     shuffle_partitions: 200
     adaptive_enabled: true
+  storage:
+    bronze_path: "dbfs:/mnt/data/bronze/crypto"
+    silver_path: "dbfs:/mnt/data/silver/crypto"
+    gold_path: "dbfs:/mnt/data/gold/crypto"
+    checkpoint_path: "dbfs:/mnt/data/checkpoints/crypto"
+
+# Snowflake Configuration (retrieved from Azure Key Vault)
+snowflake:
+  warehouse: "SNOWFLAKE_LEARNING_WH"
+  database: "CRYPTO_DB"
+  schema: "PUBLIC"
+  role: "ACCOUNTADMIN"
+
+# Data Quality Rules
+data_quality:
+  validation_rules:
+    required_fields:
+      - id
+      - symbol
+      - name
+      - current_price
+    numeric_fields:
+      - current_price
+      - market_cap
+      - total_volume
+      - market_cap_rank
+    min_price: 0.0000001
+    max_price: 1000000000
