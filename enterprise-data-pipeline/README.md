@@ -220,6 +220,38 @@ key_vault:
 
 ---
 
+## 🔄 Orchestration
+
+The pipeline orchestration is managed through **Databricks Jobs**, providing automated, scheduled execution with dependency management and monitoring.
+
+### Pipeline Workflow
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                    Databricks Job Orchestration                   │
+└──────────────────────────────────────────────────────────────────┘
+                              │
+        ┌─────────────────────┼─────────────────────┐
+        ▼                     ▼                     ▼
+┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐
+│  install_        │  │     extract      │  │   transform      │
+│  dependencies    │──▶                  │──▶                  │──▶ ... load
+│                  │  │                  │  │                  │
+│  • Install libs  │  │  • API call      │  │  • Bronze→Silver │
+│  • Setup env     │  │  • To Bronze     │  │  • Silver→Gold   │
+└──────────────────┘  └──────────────────┘  └──────────────────┘
+```
+
+**Execution Flow:**
+1. **install_dependencies** → Install required packages
+2. **extract** → Fetch data from CoinGecko API → Load to Snowflake Bronze
+3. **transform** → Process Bronze → Silver → Gold layers
+4. **load** → Validation and metadata logging
+
+Each task runs sequentially with automatic retry on failure and comprehensive logging.
+
+---
+
 ## 📊 Data Structure
 
 ### Bronze Layer
