@@ -250,6 +250,8 @@ The pipeline orchestration is managed through **Databricks Jobs**, providing aut
 
 Each task runs sequentially with automatic retry on failure and comprehensive logging.
 
+<img width="1085" height="257" alt="{5845C9C9-655B-4509-B37F-EAF2459D7892}" src="https://github.com/user-attachments/assets/55118815-79bc-4a16-8f20-7ba286b00dec" />
+
 ---
 
 ## 📊 Data Structure
@@ -306,8 +308,9 @@ SELECT * FROM GOLD.v_market_summary WHERE metric_date = CURRENT_DATE();
 
 -- View Bronze raw
 SELECT payload:symbol::STRING, payload:current_price::FLOAT 
-FROM BRONZE.BRONZE_CRYPTO_RAW LIMIT 10;
+FROM BRONZE.CRYPTO_RAW LIMIT 10;
 ```
+<img width="1366" height="595" alt="{B665CBAC-06D9-4FBA-B704-57112956029A}" src="https://github.com/user-attachments/assets/4d969291-90bb-4e51-aeab-7d69c267b117" />
 
 ---
 
